@@ -1,0 +1,36 @@
+# This file contains the window settings and defines constants for the game.
+
+WIDTH, HEIGHT = 800, 640
+LOWER_MARGIN, SIDE_MARGIN = 100, 300
+
+ROWS = 16
+MAX_COLS = 180
+
+TILE_SIZE = HEIGHT // ROWS
+TILE_TYPES = 28
+
+TILE_BTN_SPACING_X = 75
+TILE_BTN_SPACING_Y = 70
+TILE_BTN_OFFSET_X = 50
+TILE_BTN_OFFSET_Y = 20
+
+SCROLL_AREA_WIDTH = 200
+
+FPS = 60
+
+TITLE = "NEA Platformer Game"
+LEVEL_EDITOR_TITLE = "NEA Platformer Level Editor"
+
+BLACK = (0, 0, 0)
+RED = (173, 26, 26)
+BLUE = (16, 22, 185)
+GREEN = (11, 130, 14)
+YELLOW = (231, 239, 16)
+ORANGE = (218, 126, 23)
+GRAY = (128, 128, 128)
+WHITE = (255, 255, 255)
+PURPLE = (89, 17, 153)
+CYAN = (26, 195, 170)
+PINK = (226, 30, 183)
+
+BG_COLOR = BLACK 
