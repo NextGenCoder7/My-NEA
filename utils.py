@@ -161,7 +161,7 @@ def load_ammo_sprites(character):
                     if animation == "Cannon Ball Explosion" or animation == "Pearl Explosion":
                         scale_width = scale_height = TILE_SIZE
                     elif animation == "Explosion":
-                        scale_width = scale_height = TILE_SIZE * 3
+                        scale_width = scale_height = TILE_SIZE * 4
                     elif animation == "Pearl Idle":
                         scale_width = scale_height = TILE_SIZE // 2
                     elif animation == "Grenade Idle":

@@ -561,7 +561,14 @@ class Grenade(pygame.sprite.Sprite):
                     distance = math.hypot(dx, dy)
 
                     if distance <= max_damage_distance:
-                        enemy.get_hit(90, attacker=self)
+                        if distance <= (0.4 * max_damage_distance):
+                            enemy.get_hit(120, attacker=self)
+                        elif distance <= (0.6 * max_damage_distance):
+                            enemy.get_hit(100, attacker=self)
+                        elif distance <= (0.8 * max_damage_distance):
+                            enemy.get_hit(80, attacker=self)
+                        else:
+                            enemy.get_hit(60, attacker=self)
 
                 if player.alive:
                     player_dx = player.rect.centerx - self.rect.centerx
@@ -569,7 +576,14 @@ class Grenade(pygame.sprite.Sprite):
                     distance = math.hypot(player_dx, player_dy)
 
                     if distance <= max_damage_distance:
-                        player.get_hit(90, attacker=self)
+                        if distance <= (0.4 * max_damage_distance):
+                            player.get_hit(170, attacker=self)
+                        elif distance <= (0.6 * max_damage_distance):
+                            player.get_hit(140, attacker=self)
+                        elif distance <= (0.8 * max_damage_distance):
+                            player.get_hit(110, attacker=self)
+                        else:
+                            player.get_hit(80, attacker=self)
 
                 self._blast_applied = True
 
