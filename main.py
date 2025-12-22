@@ -5,7 +5,7 @@ from player import Player
 from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
-from objects import CollectibleGem
+from objects import CollectibleGem, GrenadeBox
 
 pygame.init()
 
@@ -14,7 +14,7 @@ pygame.display.set_caption(TITLE)
 
 
 def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_ammo_group, 
-                fiercetooth_group, cannonball_group, pinkstar_group, collectible_gem_group):
+                fiercetooth_group, cannonball_group, pinkstar_group, collectible_gem_group, grenade_box_group):
     """
     Render the main gameplay window for the current frame.
 
@@ -42,6 +42,9 @@ def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_grou
 
     for gem in collectible_gem_group:
         gem.draw(win)
+
+    for grenade_box in grenade_box_group:
+        grenade_box.draw(win)
 
     for enemy in fiercetooth_group:
         enemy.draw(win)
@@ -82,6 +85,7 @@ def main(win):
     clock = pygame.time.Clock()
 
     collectible_gem_group = pygame.sprite.Group()
+    grenade_box_group = pygame.sprite.Group()
     player_ammo_group = pygame.sprite.Group()
     player_grenade_group = pygame.sprite.Group()
     fiercetooth_group = pygame.sprite.Group()
@@ -91,6 +95,11 @@ def main(win):
     pink_star_group = pygame.sprite.Group()
 
     bg1 = load_image('1', 'Locations', 'Backgrounds', 'Blue Nebula')
+
+    grenade_box_img = load_image('28', 'Level Editor Tiles')
+    grenade_box_img = pygame.transform.scale(grenade_box_img, (TILE_SIZE // 2, TILE_SIZE // 2))
+    grenade_box = GrenadeBox(450, 340, grenade_box_img)
+    grenade_box_group.add(grenade_box)
 
     PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)
     GEM_SPRITES = load_gem_sprite_sheets(16, 16)
@@ -104,7 +113,7 @@ def main(win):
 
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
-    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 10, 50)
+    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 10, 3)
     enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
     enemy3 = PinkStar(200, 300, 3, PINKSTAR_SPRITES, 500)
@@ -132,7 +141,7 @@ def main(win):
         keys = pygame.key.get_pressed()
 
         draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_group, 
-                    fiercetooth_group, cannon_ball_group, pink_star_group, collectible_gem_group)
+                    fiercetooth_group, cannon_ball_group, pink_star_group, collectible_gem_group, grenade_box_group)
 
         for enemy in fiercetooth_group:  
             if enemy.alive:
@@ -203,6 +212,9 @@ def main(win):
         for gem in collectible_gem_group:
             gem.update(player)
             gem.update_sprite()
+
+        for grenade_box in grenade_box_group:
+            grenade_box.update(player)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

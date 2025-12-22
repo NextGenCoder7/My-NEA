@@ -4,13 +4,80 @@ import math
 import random
 
 
+class GrenadeBox(pygame.sprite.Sprite):
+    """
+    A box that contains grenades for the player to collect.
+
+    Attributes:
+        img (Surface): Pygame Surface used to draw the grenade box.
+        position (Vector2): Current position of the grenade box.
+        rect (Rect): Rectangular area representing the grenade box's position and size.
+        mask (Mask): Pixel-perfect collision mask for the grenade box.
+    """
+
+    def __init__(self, x, y, img):
+        """
+        Initialise a GrenadeBox.
+        Args:
+            x (float): X-coordinate of the grenade box's position.
+            y (float): Y-coordinate of the grenade box's position.
+            img (Surface): Pygame Surface used to draw the grenade box.
+        """
+        super().__init__()
+
+        self.img = img
+        self.position = pygame.math.Vector2(x, y)
+        self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
+        self.mask = pygame.mask.from_surface(self.img)
+
+    def draw(self, win):
+        """
+        Draw the grenade box on the provided surface.
+        """
+        win.blit(self.img, self.rect)
+
+    def collide(self, obj):
+        """
+        Check collision between this gem and another sprite using masks.
+
+        Args:
+            obj (Sprite): Other sprite to test collision against.
+
+        Returns:
+            bool: True if masks overlap, False otherwise.
+        """
+
+        if self.rect.colliderect(obj.rect):
+            offset_x = obj.rect.x - self.rect.x
+            offset_y = obj.rect.y - self.rect.y
+            return self.mask.overlap(obj.mask, (offset_x, offset_y)) is not None
+        else:
+            return False
+
+    def update(self, player):
+        """
+        Update grenade box position/mask and remove it if the player collects it.
+
+        Args:
+            player (Player): Player object used to detect collection.
+        """
+
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        if self.collide(player):
+            if player.alive:
+                self.kill()
+                player.grenades += 5
+
+
 class CollectibleGem(pygame.sprite.Sprite):
 
     ANIMATION_DELAY = 5
 
     def __init__(self, x, y, sprites, gem_type):
         """
-        Initialize a collectible Gem.
+        Initialise a collectible Gem.
 
         Args:
             x (float): X-coordinate of the gem's position.
@@ -433,7 +500,6 @@ class Grenade(pygame.sprite.Sprite):
         is_grenade (bool): Proving that this object is a Grenade.
     """
 
-    # --- Grenade physics constants ---
     GRAVITY = 0.7
     GROUND_Y = 400
     BOUNCE_DAMPING_Y = 0.35
@@ -445,7 +511,7 @@ class Grenade(pygame.sprite.Sprite):
     THROW_VY = -12
     ANIMATION_DELAY = 3
     SPIN_FACTOR = 0.7
-    BLAST_DURATION = 0.2 * FPS
+    BLAST_DURATION = 0.3 * FPS
 
     def __init__(self, x, y, sprites, direction):
         """
