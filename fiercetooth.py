@@ -36,7 +36,7 @@ class FierceTooth(Enemy):
     """
 
     HIT_ANIM_DURATION = 120
-    GRENADE_FLEE_DURATION = 120
+    GRENADE_FLEE_DURATION = 100
 
     def __init__(self, x, y, x_vel, sprites, health, smartmode=False):
         """
