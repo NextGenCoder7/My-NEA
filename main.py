@@ -5,6 +5,7 @@ from player import Player
 from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
+from objects import CollectibleGem
 
 pygame.init()
 
@@ -12,7 +13,8 @@ WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption(TITLE)
 
 
-def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_ammo_group, fiercetooth_group, cannonball_group, pinkstar_group):
+def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_ammo_group, 
+                fiercetooth_group, cannonball_group, pinkstar_group, collectible_gem_group):
     """
     Render the main gameplay window for the current frame.
 
@@ -24,8 +26,12 @@ def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_grou
         player (Player): Player instance to draw and query.
         scroll (int): Horizontal scroll offset for parallax backgrounds.
         player_ammo_group (Group): Group containing player projectiles.
+        player_grenade_group (Group): Group containing player grenades.
         seashell_group (Group): Group containing enemy seashell instances.
-        cannon_ball_group (Group): Group containing enemy projectiles.
+        pearl_ammo_group (Group): Group containing pearl ammo instances for seashell enemies.
+        fiercetooth_group (Group): Group containing enemy fiercetooth instances.
+        cannon_ball_group (Group): Group containing cannonball ammo instances for fiercetooth enemies.
+        pinkstar_group (Group): Group containing enemy pink star instances.
     """
 
     draw_bg(bg1, win, scroll)
@@ -33,6 +39,9 @@ def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_grou
 
     player.draw(win)
     player.draw_health_bar(win)
+
+    for gem in collectible_gem_group:
+        gem.draw(win)
 
     for enemy in fiercetooth_group:
         enemy.draw(win)
@@ -72,6 +81,7 @@ def main(win):
     """
     clock = pygame.time.Clock()
 
+    collectible_gem_group = pygame.sprite.Group()
     player_ammo_group = pygame.sprite.Group()
     player_grenade_group = pygame.sprite.Group()
     fiercetooth_group = pygame.sprite.Group()
@@ -82,24 +92,20 @@ def main(win):
 
     bg1 = load_image('1', 'Locations', 'Backgrounds', 'Blue Nebula')
 
-    purple_ammo_gem = load_image('24', 'Level Editor Tiles')
-    purple_ammo_gem = pygame.transform.scale(purple_ammo_gem, (TILE_SIZE // 4, TILE_SIZE // 4))
-
-    green_gem = load_image('25', 'Level Editor Tiles')
-    green_gem = pygame.transform.scale(green_gem, (TILE_SIZE // 4, TILE_SIZE // 4))
-    purple_gem = load_image('24', 'Level Editor Tiles')
-    purple_gem = pygame.transform.scale(purple_gem, (TILE_SIZE // 4, TILE_SIZE // 4))
-
     PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)
+    GEM_SPRITES = load_gem_sprite_sheets(16, 16)
     GRENADE_SPRITES = load_ammo_sprites('Player')
+
     FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
     CANNON_BALL_SPRITES = load_ammo_sprites('Fierce Tooth')
+
     SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
+
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
-    player = Player(150, HEIGHT // 3, 3, PLAYER_SPRITES, 1000, 50)
-    enemy = FierceTooth(600, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
+    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 10, 50)
+    enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
     enemy3 = PinkStar(200, 300, 3, PINKSTAR_SPRITES, 500)
     fiercetooth_group.add(enemy)
@@ -107,6 +113,12 @@ def main(win):
     pink_star_group.add(enemy3)
 
     enemies = list(fiercetooth_group) + list(seashell_group) 
+
+    collectible_ammo_gem = CollectibleGem(550, 340, GEM_SPRITES, "player_ammo")
+    collectible_gem_group.add(collectible_ammo_gem)
+
+    collectible_health_gem = CollectibleGem(300, 340, GEM_SPRITES, "player_health")
+    collectible_gem_group.add(collectible_health_gem)
 
     scroll_left = False
     scroll_right = False
@@ -119,7 +131,8 @@ def main(win):
 
         keys = pygame.key.get_pressed()
 
-        draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_group, fiercetooth_group, cannon_ball_group, pink_star_group)
+        draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_group, 
+                    fiercetooth_group, cannon_ball_group, pink_star_group, collectible_gem_group)
 
         for enemy in fiercetooth_group:  
             if enemy.alive:
@@ -159,7 +172,7 @@ def main(win):
             player.update_sprite()
 
             if player.shoot:
-                player.shoot_ammo(purple_ammo_gem, player_ammo_group)
+                player.shoot_ammo(GEM_SPRITES, player_ammo_group)
             if player.throw_grenade:
                 player.launch_grenade(GRENADE_SPRITES, player_grenade_group)
 
@@ -186,6 +199,10 @@ def main(win):
         for pearl in pearl_group:
             pearl.update(player)
             pearl.update_sprite()
+
+        for gem in collectible_gem_group:
+            gem.update(player)
+            gem.update_sprite()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

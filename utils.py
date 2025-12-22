@@ -59,18 +59,50 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
         sprites = []
         for i in range(sprite_sheet.get_width() // width):
             surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
-            # rect = pygame.Rect(i * width, 0, width, height)
             surface.blit(sprite_sheet, (-i * width, 0))
             
-            # Scale proportionally based on original height
             scale_width = TILE_SIZE - 8
-            scale_height = int((height / width) * scale_width)  # Maintain aspect ratio
+            scale_height = int((height / width) * scale_width)  
             sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
 
         if direction:
             all_sprites[image.replace(".png", "") + "_right"] = sprites
             all_sprites[image.replace(".png", "") + "_left"] = flip(sprites)
         else:
+            all_sprites[image.replace(".png", "")] = sprites
+
+    return all_sprites
+
+
+def load_gem_sprite_sheets(width, height):
+    """
+    Loads gem sprite sheets from the assets folder and returns a dictionary of frames.
+
+    Args:
+        width (int): Width of each frame in source sprite sheets.
+        height (int): Height of each frame in source sprite sheets.
+
+    Returns:
+        dict: Mapping of sprite names to lists of scaled frames.
+    """
+
+    path = join("assets", "Objects", "Gems")
+    images = [f for f in listdir(path) if isfile(join(path, f))]
+
+    all_sprites = {}
+
+    for image in images:
+        sprite_sheet = pygame.image.load(join(path, image)).convert_alpha()
+
+        sprites = []
+        for i in range(sprite_sheet.get_width() // width):
+            surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
+            surface.blit(sprite_sheet, (-i * width, 0))
+
+            scale_width = TILE_SIZE // 2
+            scale_height = int((height / width) * scale_width)  
+            sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
+
             all_sprites[image.replace(".png", "")] = sprites
 
     return all_sprites

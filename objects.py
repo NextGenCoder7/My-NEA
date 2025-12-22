@@ -1,11 +1,14 @@
 import pygame
-from constants import WIDTH, FPS
+from constants import WIDTH, FPS, TILE_SIZE
 import math
+import random
 
 
-class Gem(pygame.sprite.Sprite):
+class CollectibleGem(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, img):
+    ANIMATION_DELAY = 5
+
+    def __init__(self, x, y, sprites, gem_type):
         """
         Initialize a collectible Gem.
 
@@ -15,10 +18,14 @@ class Gem(pygame.sprite.Sprite):
             img (Surface): Pygame Surface used to draw the gem.
         """
         super().__init__()
-        self.img = img
+
+        self.sprites = sprites
+        self.gem_type = gem_type
+        self.img = self.sprites[gem_type][0]
         self.position = pygame.math.Vector2(x, y)
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
         self.mask = pygame.mask.from_surface(self.img)
+        self.animation_count = 0
 
     def collide(self, obj):
         """
@@ -30,6 +37,7 @@ class Gem(pygame.sprite.Sprite):
         Returns:
             bool: True if masks overlap, False otherwise.
         """
+
         if self.rect.colliderect(obj.rect):
             offset_x = obj.rect.x - self.rect.x
             offset_y = obj.rect.y - self.rect.y
@@ -42,6 +50,19 @@ class Gem(pygame.sprite.Sprite):
         Draw the gem on the provided surface.
         """
         win.blit(self.img, self.rect)
+
+    def update_sprite(self):
+        """
+        Update gem sprite animation frame.
+        """
+        sprite_sheet_name = self.gem_type
+        
+        if sprite_sheet_name in self.sprites:
+            sprites = self.sprites[sprite_sheet_name]
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.img = sprites[sprite_index]
+
+        self.animation_count += 1
 
     def update(self, player):
         """
@@ -57,10 +78,20 @@ class Gem(pygame.sprite.Sprite):
             if player.alive:
                 self.kill()
 
-# Purple Gem class (moves horizontally across the screen as player ammo)
-class PurpleGem(Gem):
+                if self.gem_type == "player_ammo":
+                    player.ammo += random.randint(15, 40)
+                elif self.gem_type == "player_health":
+                    player.health += random.randint(50, 150)
+                    if player.health > player.max_health:
+                        player.health = player.max_health
 
-    def __init__(self, x, y, img, direction):
+                    player.health_bar_timer = player.HEALTH_BAR_DURATION
+
+
+# Purple Gem class (moves horizontally across the screen as player ammo)
+class PurpleGem(CollectibleGem):
+
+    def __init__(self, x, y, sprites, gem_type, direction):
         """
         Initialise a PurpleGem which acts as player's projectile.
 
@@ -70,7 +101,10 @@ class PurpleGem(Gem):
             img (Surface): Sprite image for the projectile.
             direction (Vector2): Direction vector the projectile will travel.
         """
-        super().__init__(x, y, img)
+        super().__init__(x, y, sprites, gem_type)
+
+        base_img = self.sprites[self.gem_type][0]
+        self.img = pygame.transform.scale(base_img, (TILE_SIZE // 4, TILE_SIZE // 4))
         self.speed = 10
         self.direction = direction
         self.velocity = pygame.math.Vector2(0, 0)

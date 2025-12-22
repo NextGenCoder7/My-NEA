@@ -248,7 +248,7 @@ class Player(pygame.sprite.Sprite):
 
             pygame.draw.rect(win, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 1)
 
-    def shoot_ammo(self, ammo_img, ammo_group):
+    def shoot_ammo(self, ammo_sprites, ammo_group):
         """
         Shoots ammo in the direction the player is facing.
         Creates a PurpleGem object representing the ammo and adds it to the ammo group.
@@ -263,10 +263,10 @@ class Player(pygame.sprite.Sprite):
 
             if self.direction == "right":
                 ammo_direction = pygame.math.Vector2(1, 0)
-                ammo_gem = PurpleGem(self.rect.right - self.img.get_width() // 2, self.rect.centery, ammo_img, ammo_direction)
+                ammo_gem = PurpleGem(self.rect.right - self.img.get_width() // 2, self.rect.centery, ammo_sprites, "player_ammo", ammo_direction)
             else:
                 ammo_direction = pygame.math.Vector2(-1, 0)
-                ammo_gem = PurpleGem(self.rect.left, self.rect.centery, ammo_img, ammo_direction)
+                ammo_gem = PurpleGem(self.rect.left, self.rect.centery, ammo_sprites, "player_ammo", ammo_direction)
 
             ammo_gem.velocity = ammo_direction * ammo_gem.speed
             ammo_group.add(ammo_gem)
