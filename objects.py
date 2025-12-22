@@ -371,8 +371,21 @@ class Grenade(pygame.sprite.Sprite):
         - After BLAST_DURATION expires the sprite is removed via `kill()`.
 
     Attributes:
+        GRAVITY (float): Gravity strength affecting the grenade falling.
+        BOUNCE_DAMPING_Y (float): Damping factor for vertical bounce.
+        MIN_BOUNCE_VY (float): Minimum vertical velocity to trigger a bounce.
+        AIR_DRAG (float): Horizontal drag factor while airborne.
+        ROLL_DECEL (float): Horizontal deceleration factor when rolling on ground.
+        ROLL_STOP_THRESHOLD (float): Minimum horizontal velocity to stop rolling.
+        THROW_SPEED (float): Initial horizontal speed multiplier when thrown.
+        THROW_VY (float): Initial upward velocity when thrown.
+        ANIMATION_DELAY (int): Delay in frames between sprite animations.
+        SPIN_FACTOR (float): Factor for rotation speed based on horizontal velocity.
+        BLAST_DURATION (int): Duration in frames for which the blast remains visible.
+
         sprites (dict): Sprite frames for grenade and explosion animations.
-        img (Surface): Current image/sprite of the grenade.
+        base_img (Surface): Current image/sprite of the grenade.
+        img (Surface): For rotating the base image.
         position (Vector2): Current position of the grenade.
         velocity (Vector2): Current velocity of the grenade.
         direction (Vector2): Direction vector for initial throw.
@@ -386,21 +399,36 @@ class Grenade(pygame.sprite.Sprite):
         is_grenade (bool): Proving that this object is a Grenade.
     """
 
+    # --- Grenade physics constants ---
     GRAVITY = 0.7
-    X_DRAG = 0.95
-    GROUND_DRAG = 0.9
-    STOP_THRESHOLD = 0.08
-    STOP_THRESHOLD_GROUND = 0.2
-    ANIMATION_DELAY = 3
-    BLAST_DURATION = 0.2 * FPS
+    GROUND_Y = 400
+    BOUNCE_DAMPING_Y = 0.35
+    MIN_BOUNCE_VY = 1.2
+    AIR_DRAG = 0.995
+    ROLL_DECEL = 1.95
+    ROLL_STOP_THRESHOLD = 0.6
     THROW_SPEED = 8
     THROW_VY = -12
+    ANIMATION_DELAY = 3
+    SPIN_FACTOR = 0.7
+    BLAST_DURATION = 0.2 * FPS
 
     def __init__(self, x, y, sprites, direction):
+        """
+        Initialise a Grenade Object.
+
+        Args:
+            x: (float): Initial x position.
+            y: (float): Initial y position.
+            sprites (dict): Sprite frames for grenade and explosion animations.
+            direction (Vector2): Direction vector for initial throw.
+        """
         super().__init__()
 
         self.sprites = sprites
-        self.img = self.sprites["Grenade Idle"][0]
+        self.base_img = self.sprites["Grenade Idle"][0]
+        self.img = self.base_img
+        self.rotation_angle = 0
         self.position = pygame.math.Vector2(x, y)
         self.direction = direction
         self.velocity = pygame.math.Vector2(self.direction.x * self.THROW_SPEED, self.THROW_VY)
@@ -425,8 +453,9 @@ class Grenade(pygame.sprite.Sprite):
         return False
 
     def start_explosion(self):
-        """Switch to blast state, anchor explosion bottom to grenade bottom, update mask and set blast timer."""
-        # remember current ground anchor (midbottom) so explosion stays visually anchored
+        """
+        Switch to blast state, anchor explosion bottom to grenade bottom, update mask and set blast timer.
+        """
         midbottom = self.rect.midbottom
 
         self.state = "blast"
@@ -436,13 +465,11 @@ class Grenade(pygame.sprite.Sprite):
 
         explosion_frames = self.sprites.get("Explosion", None)
         if explosion_frames:
-            # set initial image/frame and anchor to previous midbottom
             self.img = explosion_frames[0]
             self.rect = self.img.get_rect(midbottom=midbottom)
             self.position = pygame.math.Vector2(self.rect.topleft)
             self.mask = pygame.mask.from_surface(self.img)
 
-        # set visible duration for the blast (holds last frame while this counts down)
         self.blast_timer = int(self.BLAST_DURATION)
 
     def update_sprite(self):
@@ -458,20 +485,18 @@ class Grenade(pygame.sprite.Sprite):
 
         frame_index = self.animation_count // self.ANIMATION_DELAY
 
-        # preserve bottom anchor while changing frames
         midbottom = self.rect.midbottom
 
         if self.state == "blast":
-            # show each frame in sequence; once past last frame hold the last frame
             if frame_index < len(sprites):
                 self.img = sprites[frame_index]
             else:
                 self.img = sprites[-1]
         else:
             frame_index = min(frame_index, len(sprites) - 1)
-            self.img = sprites[frame_index]
+            base_frame = sprites[frame_index]
+            self.img = pygame.transform.rotate(base_frame, self.rotation_angle)
 
-        # update rect/mask keeping the visual anchor at bottom
         self.rect = self.img.get_rect(midbottom=midbottom)
         self.position = pygame.math.Vector2(self.rect.topleft)
         self.mask = pygame.mask.from_surface(self.img)
@@ -487,64 +512,41 @@ class Grenade(pygame.sprite.Sprite):
         """
 
         if self.state == "thrown":
-            # --------------------------------------------------
-            # TIMER
-            # --------------------------------------------------
             self.timer -= 1
             if self.timer <= 0:
                 self.start_explosion()
                 return
 
-            # --------------------------------------------------
-            # CONSTANTS (local, readable)
-            # --------------------------------------------------
-            GROUND_Y = 400
-            BOUNCE_DAMPING_Y = 0.35
-            ROLL_FRICTION = 0.92
-            AIR_DRAG = 0.995
-            MIN_BOUNCE_VY = 1.2
-            MIN_ROLL_VX = 0.15
+            self.rotation_angle -= self.velocity.x * self.SPIN_FACTOR
+            self.rotation_angle %= 360
 
-            # --------------------------------------------------
-            # AIRBORNE PHYSICS
-            # --------------------------------------------------
-            if self.position.y + self.rect.height < GROUND_Y - 1:
-                # gravity
+            airborne = (self.position.y + self.rect.height) < self.GROUND_Y
+
+            if airborne:
                 self.velocity.y += self.GRAVITY
+                self.velocity.x *= self.AIR_DRAG
 
-                # symmetric air drag (IMPORTANT: magnitude-based)
-                self.velocity.x *= AIR_DRAG
-
-            # --------------------------------------------------
-            # INTEGRATE POSITION (FLOATS)
-            # --------------------------------------------------
             self.position += self.velocity
 
-            # --------------------------------------------------
-            # GROUND COLLISION + BOUNCE
-            # --------------------------------------------------
-            if self.position.y + self.rect.height >= GROUND_Y:
-                # snap to ground
-                self.position.y = GROUND_Y - self.rect.height
+            if self.position.y + self.rect.height >= self.GROUND_Y:
+                self.position.y = self.GROUND_Y - self.rect.height
 
-                # bounce if falling fast enough
-                if abs(self.velocity.y) > MIN_BOUNCE_VY:
-                    self.velocity.y = -self.velocity.y * BOUNCE_DAMPING_Y
+                if abs(self.velocity.y) > self.MIN_BOUNCE_VY:
+                    self.velocity.y = -self.velocity.y * self.BOUNCE_DAMPING_Y
                 else:
                     self.velocity.y = 0
 
-                # rolling friction (SIGN-INDEPENDENT)
-                self.velocity.x *= ROLL_FRICTION
+                if self.velocity.x > 0:
+                    self.velocity.x -= self.ROLL_DECEL
+                    if self.velocity.x < self.ROLL_STOP_THRESHOLD:
+                        self.velocity.x = 0
+                elif self.velocity.x < 0:
+                    self.velocity.x += self.ROLL_DECEL
+                    if self.velocity.x > -self.ROLL_STOP_THRESHOLD:
+                        self.velocity.x = 0
 
-                # clamp tiny roll movement
-                if abs(self.velocity.x) < MIN_ROLL_VX:
-                    self.velocity.x = 0
-
-            # --------------------------------------------------
-            # UPDATE RECT + MASK (END OF STEP)
-            # --------------------------------------------------
             self.rect.topleft = (round(self.position.x), round(self.position.y))
-            self.mask = pygame.mask.from_surface(self.img)       # TODO test the grenade throwing logic!
+            self.mask = pygame.mask.from_surface(self.img)
 
         elif self.state == "blast":
             if not self._blast_applied:
@@ -571,7 +573,6 @@ class Grenade(pygame.sprite.Sprite):
 
                 self._blast_applied = True
 
-            # countdown visible blast duration then remove
             if self.blast_timer > 0:
                 self.blast_timer -= 1
             else:

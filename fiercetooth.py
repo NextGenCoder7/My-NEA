@@ -219,7 +219,7 @@ class FierceTooth(Enemy):
             dy = grenade.rect.centery - self.rect.centery
             distance = math.hypot(dx, dy)
 
-            if distance < 120:
+            if distance < 130:
                 angle_to_grenade = math.degrees(math.atan2(dy, dx))
                 if angle_to_grenade < 0:
                     angle_to_grenade += 360
