@@ -1,6 +1,7 @@
 import pygame
 from constants import *
 from objects import PurpleGem, Grenade
+from utils import draw_text
 
 
 class Player(pygame.sprite.Sprite):
@@ -40,11 +41,11 @@ class Player(pygame.sprite.Sprite):
     """
 
     ANIMATION_DELAY = 3
-    HEALTH_BAR_DURATION = 180
+    HEALTH_BAR_DURATION = NUM_AMMO_DURATION = NUM_GRENADES_DURATION = 180
     GRAVITY = 0.7  
     HIT_ANIM_DURATION = 120
 
-    def __init__(self, x, y, x_vel, SPRITES, ammo, grenades):
+    def __init__(self, x, y, x_vel, SPRITES, ammo, grenades, GEM_SPRITES, GRENADE_SPRITES):
         """
         Initialises the Player object with the given position, velocity, sprites, and ammo.
 
@@ -57,6 +58,8 @@ class Player(pygame.sprite.Sprite):
         """
         super().__init__()
         self.sprites = SPRITES
+        self.gem_sprites = GEM_SPRITES
+        self.grenade_sprites = GRENADE_SPRITES
         self.direction = "right"
         self.img = self.sprites['Idle_' + self.direction][0]   
         self.animation_count = 0
@@ -80,6 +83,8 @@ class Player(pygame.sprite.Sprite):
         self.max_health = self.health
         self.health_bar_timer = 0
         self.hit_anim_timer = 0
+        self.draw_num_ammo_timer = 0
+        self.draw_num_grenades_timer = 0
         self.is_player = True
 
     def handle_movement(self, keys, enemies_group=None):
@@ -147,7 +152,7 @@ class Player(pygame.sprite.Sprite):
 
         if enemies_group:
             for enemy in enemies_group:
-                if enemy.alive:        # don't collide with a dead enemy!
+                if enemy.alive:                     # don't collide with a dead enemy!
                     if self.collide(enemy):                
                         dx = abs(self.rect.centerx - enemy.rect.centerx)
                         
@@ -232,11 +237,14 @@ class Player(pygame.sprite.Sprite):
         Args:
             win (Surface): The surface on which to draw the health bar.
         """
-        if self.health < self.max_health and self.health_bar_timer > 0:
+        if self.health <= self.max_health and self.health_bar_timer > 0:
             bar_width = 40
             bar_height = 6
             bar_x = self.rect.centerx - bar_width // 2
-            bar_y = self.rect.top - 5
+            if self.draw_num_ammo_timer > 0 or self.draw_num_grenades_timer > 0:
+                bar_y = self.rect.top - 17
+            else:
+                bar_y = self.rect.top - 5
 
             health_ratio = self.health / self.max_health
             current_health_width = int(bar_width * health_ratio)
@@ -247,6 +255,32 @@ class Player(pygame.sprite.Sprite):
                 pygame.draw.rect(win, (0, 255, 0), (bar_x, bar_y, current_health_width, bar_height))
 
             pygame.draw.rect(win, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 1)
+
+    def draw_ammo_count(self, win):
+        """
+        Draws the number of ammo above the player when the player collects more ammo.
+        """
+        if (self.ammo > 0 and self.draw_num_ammo_timer > 0):
+            ammo_img = self.gem_sprites["player_ammo"][0]
+            ammo_img = pygame.transform.scale(ammo_img, (TILE_SIZE // 4, TILE_SIZE // 4))
+            ammo_x = self.rect.left - 5
+            ammo_y = self.rect.top - 7 
+            win.blit(ammo_img, (ammo_x, ammo_y))
+            ammo_text = str(self.ammo)
+            draw_text(ammo_text, "Arial", 13, PINK, win, ammo_x + 11, ammo_y - 3, False)
+
+    def draw_grenade_count(self, win):
+        """
+        Draws the number of grenades above the player when the player collects more grenades.
+        """
+        if (self.grenades > 0 and self.draw_num_grenades_timer > 0):
+            grenade_img = self.grenade_sprites["Grenade Idle"][0]
+            grenade_img = pygame.transform.scale(grenade_img, (TILE_SIZE // 4, TILE_SIZE // 4))
+            grenade_x = self.rect.right - 13
+            grenade_y = self.rect.top - 7 
+            win.blit(grenade_img, (grenade_x, grenade_y))
+            grenade_text = str(self.grenades)
+            draw_text(grenade_text, "Arial", 13, GREEN, win, grenade_x + 11, grenade_y - 4, False)
 
     def shoot_ammo(self, ammo_sprites, ammo_group):
         """
@@ -341,3 +375,7 @@ class Player(pygame.sprite.Sprite):
             self.health_bar_timer -= 1
         if self.hit_anim_timer > 0:
             self.hit_anim_timer -= 1
+        if self.draw_num_ammo_timer > 0:
+            self.draw_num_ammo_timer -= 1
+        if self.draw_num_grenades_timer > 0:
+            self.draw_num_grenades_timer -= 1

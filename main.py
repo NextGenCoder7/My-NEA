@@ -39,6 +39,8 @@ def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_grou
 
     player.draw(win)
     player.draw_health_bar(win)
+    player.draw_ammo_count(win)
+    player.draw_grenade_count(win)
 
     for gem in collectible_gem_group:
         gem.draw(win)
@@ -98,7 +100,7 @@ def main(win):
 
     grenade_box_img = load_image('28', 'Level Editor Tiles')
     grenade_box_img = pygame.transform.scale(grenade_box_img, (TILE_SIZE // 2, TILE_SIZE // 2))
-    grenade_box = GrenadeBox(450, 340, grenade_box_img)
+    grenade_box = GrenadeBox(690, 340, grenade_box_img)
     grenade_box_group.add(grenade_box)
 
     PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)
@@ -113,7 +115,7 @@ def main(win):
 
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
-    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 10, 3)
+    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 3, GEM_SPRITES, GRENADE_SPRITES)
     enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
     enemy3 = PinkStar(200, 300, 3, PINKSTAR_SPRITES, 500)
@@ -123,10 +125,10 @@ def main(win):
 
     enemies = list(fiercetooth_group) + list(seashell_group) 
 
-    collectible_ammo_gem = CollectibleGem(550, 340, GEM_SPRITES, "player_ammo")
+    collectible_ammo_gem = CollectibleGem(650, 340, GEM_SPRITES, "player_ammo")
     collectible_gem_group.add(collectible_ammo_gem)
 
-    collectible_health_gem = CollectibleGem(300, 340, GEM_SPRITES, "player_health")
+    collectible_health_gem = CollectibleGem(730, 340, GEM_SPRITES, "player_health")
     collectible_gem_group.add(collectible_health_gem)
 
     scroll_left = False
@@ -230,6 +232,12 @@ def main(win):
                 if event.key == pygame.K_g:
                     if player.alive:
                         player.throw_grenade = True
+                if event.key == pygame.K_z:
+                    if player.alive:
+                        player.draw_num_grenades_timer = player.NUM_GRENADES_DURATION
+                if event.key == pygame.K_x:
+                    if player.alive:
+                        player.draw_num_ammo_timer = player.NUM_AMMO_DURATION
     
     pygame.quit()
 

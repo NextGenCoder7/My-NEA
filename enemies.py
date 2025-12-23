@@ -149,7 +149,7 @@ class Enemy(pygame.sprite.Sprite):
         """
         Make the enemy jump once by setting vertical velocity.
 
-        This method supports a single jump only, and increments the internal jump counter.
+        This method supports a single jump only for the enemies, and increments the internal jump counter.
         """
         if self.jump_count < 1:
             self.y_vel = -13

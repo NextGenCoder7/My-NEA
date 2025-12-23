@@ -1,7 +1,7 @@
 import pygame
 from constants import WIDTH, FPS, TILE_SIZE
 import math
-import random
+from random import randint
 
 
 class GrenadeBox(pygame.sprite.Sprite):
@@ -69,6 +69,7 @@ class GrenadeBox(pygame.sprite.Sprite):
             if player.alive:
                 self.kill()
                 player.grenades += 5
+                player.draw_num_grenades_timer = player.NUM_GRENADES_DURATION
 
 
 class CollectibleGem(pygame.sprite.Sprite):
@@ -146,9 +147,10 @@ class CollectibleGem(pygame.sprite.Sprite):
                 self.kill()
 
                 if self.gem_type == "player_ammo":
-                    player.ammo += random.randint(15, 40)
+                    player.ammo += randint(20, 40)
+                    player.draw_num_ammo_timer = player.NUM_AMMO_DURATION
                 elif self.gem_type == "player_health":
-                    player.health += random.randint(50, 150)
+                    player.health += randint(50, 150)
                     if player.health > player.max_health:
                         player.health = player.max_health
 

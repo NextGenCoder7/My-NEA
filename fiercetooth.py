@@ -448,6 +448,7 @@ class FierceTooth(Enemy):
             player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
             if player_is_behind:
                 self.direction = "left" if self.direction == "right" else "right"
+                self.jump()
                 self.speed = 3
                 self.state = "running"
                 self.state_timer = 0

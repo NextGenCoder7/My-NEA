@@ -140,7 +140,7 @@ def draw_text_middle(text, fontname, size, color, win):
     win.blit(label, (WIDTH // 2 - label.get_width() // 2, HEIGHT // 2 - label.get_height() // 2))
 
 
-def draw_text(text, fontname, size, color, win, x, y):
+def draw_text(text, fontname, size, color, win, x, y, bold=False):
     """
     Draw text at a specific position in the window.
 
@@ -154,7 +154,7 @@ def draw_text(text, fontname, size, color, win, x, y):
         y (int): Y position.
     """
 
-    font = pygame.font.SysFont(fontname, size, bold=False)
+    font = pygame.font.SysFont(fontname, size, bold)
     label = font.render(text, 1, color)
 
     win.blit(label, (x, y))
