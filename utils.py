@@ -200,6 +200,7 @@ def load_ammo_sprites(character):
                         scale_width = scale_height = TILE_SIZE // 3
                     else:
                         scale_width = scale_height = TILE_SIZE // 4
+
                     sprite = pygame.transform.scale(sprite, (scale_width, scale_height))
                     sprites.append(sprite)
                 

@@ -13,6 +13,7 @@ class SeashellPearl(Enemy):
 
     Attributes:
         HIT_ANIM_DURATION (int): Duration of hit animation in frames.
+        TURN_COOLDOWN (int): Cooldown duration for turning direction in smartmode.
 
         vision_range (int): Maximum distance at which the enemy can see the player.
         vision_angle (int): Angle of the enemy's vision cone.
@@ -26,12 +27,14 @@ class SeashellPearl(Enemy):
         smartmode (bool): If True, the enemy will turn to face the player when hit.
         recently_lost_vision_timer (int): Timer for recently lost vision state in smartmode.
         recheck_turn_timer (int): Timer for rechecking direction after turning in smartmode.
+        turn_cooldown (int): Cooldown timer for turning direction in smartmode.
         was_hit_from_behind (bool): Whether the enemy was hit from behind.
         hit_anim_timer (int): Timer for displaying hit animation when damaged by the player.
         enemy_type (str): Type identifier for the enemy.
     """
 
     HIT_ANIM_DURATION = 120
+    TURN_COOLDOWN = 15
 
     def __init__(self, x, y, x_vel, sprites, health, smartmode=False):
         """
@@ -61,9 +64,9 @@ class SeashellPearl(Enemy):
         self.smartmode = smartmode
         self.recently_lost_vision_timer = 0
         self.recheck_turn_timer = 0  
+        self.turn_cooldown = 0
 
         self.was_hit_from_behind = False
-
         self.hit_anim_timer = 0
 
         self.enemy_type = "Seashell Pearl"
@@ -273,15 +276,21 @@ class SeashellPearl(Enemy):
         if self.smartmode and player:
             if previous_vision and not self.player_in_vision:
                 self.recently_lost_vision_timer = 30
+                if self.turn_cooldown == 0:
+                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
             elif self.recently_lost_vision_timer > 0:
                 self.recently_lost_vision_timer -= 1
 
-            # Recheck timer: if we turned but never reacquired vision, look back once
+            if self.turn_cooldown > 0:
+                self.turn_cooldown -= 1
+
             if self.recheck_turn_timer > 0:
                 if self.hit_anim_timer == 0:
                     self.recheck_turn_timer -= 1
-                    if self.recheck_turn_timer == 0 and not self.player_in_vision:
+
+                    if self.recheck_turn_timer == 0 and not self.player_in_vision and self.turn_cooldown == 0:
                         self.direction = "left" if self.direction == "right" else "right"
+                        self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
@@ -297,10 +306,11 @@ class SeashellPearl(Enemy):
         if self.smartmode and player and self.recently_lost_vision_timer > 0:
             dx = player.rect.centerx - self.rect.centerx
             player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-            if player_is_behind:
+            if player_is_behind and self.turn_cooldown == 0:
                 self.direction = "left" if self.direction == "right" else "right"
                 self.recently_lost_vision_timer = 0
-                self.recheck_turn_timer = self.RECHECK_TURN_DURATION      
+                self.recheck_turn_timer = self.RECHECK_TURN_DURATION    
+                self.turn_cooldown = self.TURN_COOLDOWN
 
         # Handle bite damage after bite starts
         if player and self.biting and self.bite_cooldown == 0:
@@ -325,11 +335,12 @@ class SeashellPearl(Enemy):
                     player_is_behind = (self.direction == "right" and dx <= -10) or \
                                 (self.direction == "left" and dx >= 10)
 
-                    if player_is_behind and self.hit_anim_timer == 0:
+                    if player_is_behind and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
                         self.direction = "left" if self.direction == "right" else "right"
                         self.biting = True
                         self.bite_cooldown = 0
                         self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                        self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.hit_anim_timer > 0:
             self.hit_anim_timer -= 1   

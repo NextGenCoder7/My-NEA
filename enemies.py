@@ -39,12 +39,14 @@ class Enemy(pygame.sprite.Sprite):
 
         moving_left (bool): Whether the enemy is currently moving left.
         moving_right (bool): Whether the enemy is currently moving right.
+
+        is_enemy (bool): Flag to identify this object as an enemy.
     """
 
     ANIMATION_DELAY = 6
     HEALTH_BAR_DURATION = 180
     GRAVITY = 0.7
-    RECHECK_TURN_DURATION = 50
+    RECHECK_TURN_DURATION = 55
     
     def __init__(self, x, y, x_vel, sprites, health):
         """
@@ -75,14 +77,12 @@ class Enemy(pygame.sprite.Sprite):
         self.max_health = self.health
         self.health_bar_timer = 0
         
-        # AI behavior variables
         self.state = "idle"  # "idle" or "running"
         self.state_timer = 0
-        self.state_duration = random.randint(60, 180)  # 1-3 seconds at 60 FPS
+        self.state_duration = random.randint(60, 180)  
         self.jump_timer = 0
-        self.jump_interval = random.randint(120, 300)  # 2-5 seconds between jumps
+        self.jump_interval = random.randint(120, 300) 
         
-        # Movement direction
         self.moving_left = False
         self.moving_right = False
 
@@ -97,12 +97,10 @@ class Enemy(pygame.sprite.Sprite):
         self.moving_left = False
         self.moving_right = False
         
-        # Update state timer
         self.state_timer += 1
         if self.state_timer >= self.state_duration:
-            # Change state
             if self.state == "idle":
-                if random.random() < 0.5:
+                if not (getattr(self, 'suppress_random_turns_timer', 0) > 0) and random.random() < 0.5:
                     self.direction = "left" if self.direction == "right" else "right"
                 self.state = "running"
                 self.state_duration = random.randint(60, 180)
@@ -111,7 +109,6 @@ class Enemy(pygame.sprite.Sprite):
                 self.state_duration = random.randint(60, 180)
             self.state_timer = 0
         
-        # Handle movement based on state
         if self.state == "running":
             if self.direction == "right":
                 self.velocity.x = self.speed
@@ -120,14 +117,12 @@ class Enemy(pygame.sprite.Sprite):
                 self.velocity.x = -self.speed
                 self.moving_left = True
         
-        # Apply gravity
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
             self.y_vel = 10
         
         self.velocity.y += self.y_vel
         
-        # Ground collision (same as player)
         if self.rect.bottom + self.velocity.y > 400:
             self.velocity.y = 400 - self.rect.bottom
             self.jump_count = 0
@@ -135,7 +130,6 @@ class Enemy(pygame.sprite.Sprite):
         
         self.position += self.velocity
 
-        # Screen boundary detection
         if self.rect.left + self.velocity.x <= 0:
             self.direction = "right"
             self.velocity.x = 0

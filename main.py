@@ -112,10 +112,10 @@ def main(win):
 
     SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
-
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
     player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 3, GEM_SPRITES, GRENADE_SPRITES)
+
     enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
     enemy3 = PinkStar(200, 300, 3, PINKSTAR_SPRITES, 500)
@@ -175,7 +175,7 @@ def main(win):
         #         enemy.update(player)   
         #         enemy.handle_movement()
         #         enemy.update_sprite(player)
-
+        
         if player.alive:
             player.update()
             player.handle_movement(keys, enemies)
@@ -192,7 +192,7 @@ def main(win):
             if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
                 scroll += 5 * scroll_speed
         else:
-            pass    # Player is dead; need to code screen fade (later)
+            pass    # need to code player disappearing animation, maybe I should do it in player class
 
         for ammo in player_ammo_group:
             ammo.update(enemies)   

@@ -211,7 +211,7 @@ class Player(pygame.sprite.Sprite):
         if self.health <= 0:
             self.health = 0
             self.speed = 0
-            self.alive = False   
+            self.alive = False
 
     def collide(self, obj):
         """

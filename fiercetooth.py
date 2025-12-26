@@ -14,6 +14,8 @@ class FierceTooth(Enemy):
     Attributes:
         HIT_ANIM_DURATION (int): Duration of hit animation in frames.
         GRENADE_FLEE_DURATION (int): Duration to flee from grenades in frames.
+        TURN_COOLDOWN (int): Cooldown time for turning direction in frames.
+        SUPPRESS_TURN_DURATION (int): Duration to suppress random turns after losing vision.
 
         vision_range (int): The range of the enemy's vision.
         vision_angle (int): The angle of the enemy's vision.
@@ -30,6 +32,8 @@ class FierceTooth(Enemy):
         recheck_turn_timer (int): Timer for rechecking turn after losing vision.
         dodge_cooldown (int): The cooldown time for the enemy's dodge.
         grenade_flee_timer (int): Timer for fleeing from grenades.
+        turn_cooldown (int): Cooldown timer for turning direction.
+        suppress_random_turns_timer (int): Timer to suppress random turns.
         was_hit_from_behind (bool): Whether the enemy was hit from behind.
         hit_anim_timer (int): Timer for Fiercetooth's hit animation.
         enemy_type (string): Showing the enemy species is Fiercetooth.
@@ -37,6 +41,8 @@ class FierceTooth(Enemy):
 
     HIT_ANIM_DURATION = 120
     GRENADE_FLEE_DURATION = 100
+    TURN_COOLDOWN = 15
+    SUPPRESS_TURN_DURATION = 120
 
     def __init__(self, x, y, x_vel, sprites, health, smartmode=False):
         """
@@ -70,6 +76,9 @@ class FierceTooth(Enemy):
         self.recheck_turn_timer = 0  
         self.dodge_cooldown = 0
         self.grenade_flee_timer = 0
+
+        self.turn_cooldown = 0
+        self.suppress_random_turns_timer = 0
 
         self.was_hit_from_behind = False
         self.hit_anim_timer = 0
@@ -374,14 +383,29 @@ class FierceTooth(Enemy):
         if self.smartmode and player:
             if previous_vision and not self.player_in_vision:
                 self.recently_lost_vision_timer = 30
+                if self.turn_cooldown == 0:
+                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+
+                    dx = player.rect.centerx - self.rect.centerx
+                    player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                    if not player_is_behind:
+                        self.suppress_random_turns_timer = max(self.suppress_random_turns_timer, self.SUPPRESS_TURN_DURATION)
             elif self.recently_lost_vision_timer > 0:
                 self.recently_lost_vision_timer -= 1
+
+            if self.turn_cooldown > 0:
+                self.turn_cooldown -= 1
+
+            if self.suppress_random_turns_timer > 0:
+                self.suppress_random_turns_timer -= 1
 
             if self.recheck_turn_timer > 0:
                 if self.hit_anim_timer == 0:
                     self.recheck_turn_timer -= 1
-                    if self.recheck_turn_timer == 0 and not self.player_in_vision:
+
+                    if self.recheck_turn_timer == 0 and not self.player_in_vision and self.turn_cooldown == 0:
                         self.direction = "left" if self.direction == "right" else "right"
+                        self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
@@ -430,6 +454,7 @@ class FierceTooth(Enemy):
                     self.direction = "left" if self.direction == "right" else "right"
                     self.recently_lost_vision_timer = 0
                     self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                    self.turn_cooldown = self.TURN_COOLDOWN
         elif self.hit_anim_timer > 0:      
             self.attack_cooldown = 60
             self.speed = 0
@@ -443,17 +468,19 @@ class FierceTooth(Enemy):
                     self.direction = "left" if self.direction == "right" else "right"
                     self.recently_lost_vision_timer = 0
                     self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                    self.turn_cooldown = self.TURN_COOLDOWN
         elif self.smartmode and player and self.recently_lost_vision_timer > 0:
             dx = player.rect.centerx - self.rect.centerx
             player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-            if player_is_behind:
+            if player_is_behind and self.turn_cooldown == 0:
                 self.direction = "left" if self.direction == "right" else "right"
-                self.jump()
+                # self.jump()
                 self.speed = 3
                 self.state = "running"
                 self.state_timer = 0
                 self.recently_lost_vision_timer = 0
                 self.recheck_turn_timer = self.RECHECK_TURN_DURATION 
+                self.turn_cooldown = self.TURN_COOLDOWN
         else:
             if self.grenade_flee_timer == 0:
                 self.speed = 2
@@ -475,11 +502,12 @@ class FierceTooth(Enemy):
                 player_is_behind = (self.direction == "right" and dx <= -10) or \
                             (self.direction == "left" and dx >= 10)
 
-                if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0:
+                if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
                     self.direction = "left" if self.direction == "right" else "right"
                     self.attacking = True
                     self.attack_cooldown = 0
                     self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                    self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.post_attack_recovery:
             self.attack_recovery_timer += 1
