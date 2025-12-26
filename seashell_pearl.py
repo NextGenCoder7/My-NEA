@@ -148,6 +148,42 @@ class SeashellPearl(Enemy):
 
         return False 
 
+    def react_to_grenades(self, player, player_grenade_group):
+        if not self.smartmode or not self.alive:
+            return
+
+        for grenade in player_grenade_group:
+            if not grenade.alive:
+                continue
+
+            dx = grenade.rect.centerx - self.rect.centerx
+            dy = grenade.rect.centery - self.rect.centery
+            distance = math.hypot(dx, dy)
+
+            if distance < 150:
+                angle_to_grenade = math.degrees(math.atan2(dy, dx))
+                if angle_to_grenade < 0:
+                    angle_to_grenade += 360
+                if self.direction == "right":
+                    left_bound = 360 - (self.vision_angle / 2)
+                    right_bound = self.vision_angle / 2
+                    in_vision = (angle_to_grenade >= left_bound or angle_to_grenade <= right_bound)
+                else:
+                    left_bound = 180 - (self.vision_angle / 2)
+                    right_bound = 180 + (self.vision_angle / 2)
+                    in_vision = (left_bound <= angle_to_grenade <= right_bound)
+
+                if in_vision:
+                    if self.turn_cooldown == 0:
+                        dx = player.rect.centerx - self.rect.centerx
+                        if self.direction == "right" and dx < 0:
+                            self.direction = "left"                       
+                        elif self.direction == "left" and dx > 0:
+                            self.direction = "right"
+
+                        self.turn_cooldown = self.TURN_COOLDOWN
+                    break
+
     def draw(self, win):
         """
         Draw the enemy on the provided surface.

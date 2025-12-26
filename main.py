@@ -154,9 +154,7 @@ def main(win):
 
                 if hasattr(enemy, 'smartmode') and enemy.smartmode:
                     enemy.check_and_dodge_bullets(player_ammo_group)
-
-                if hasattr(enemy, 'smartmode') and enemy.smartmode:
-                    enemy.check_and_dodge_grenades(player_grenade_group)
+                    enemy.check_and_dodge_grenades(player_grenade_group)                    
 
                 if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
                     enemy.shoot(CANNON_BALL_SPRITES, cannon_ball_group)
@@ -169,6 +167,9 @@ def main(win):
             if enemy.alive:
                 enemy.update(player, PEARL_SPRITES, pearl_group)        
                 enemy.update_sprite(player)
+
+                if hasattr(enemy, 'smartmode') and enemy.smartmode:
+                    enemy.react_to_grenades(player, player_grenade_group)
 
                 if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
                     enemy.fire(PEARL_SPRITES, pearl_group)
