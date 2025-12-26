@@ -81,6 +81,10 @@ class SeashellPearl(Enemy):
         Returns:
             string: "bite" if the player is within the bite range, "fire" if the player is within the vision range, False otherwise.
         """
+        if not player or not player.alive:
+            self.player_in_vision = False
+            self.biting = False
+            return False
         
         dx = player.rect.centerx - self.rect.centerx
         dy = player.rect.centery - self.rect.centery
@@ -152,24 +156,27 @@ class SeashellPearl(Enemy):
 
     def update_sprite(self, player):
         """
-        Update enemy sprite based on the current state (idle/seashell bite/seashell fire/seashell hit/seashell recover/dead).
-        """
+        Update enemy sprite based on the current state (idle/seashell bite/seashell fire/seashell hit/dead).
 
+        Dead > Hit > Bite > Fire > Idle. When the player is dead, the enemy won't pick bite/fire.
+        """
         if not self.alive:
             sprite_sheet = "Dead"
         else:
-            if not player.alive:
-                sprite_sheet = "Idle"
-            else:
-                if self.biting:
+            if player and player.alive:
+                if self.hit_anim_timer > 0:
+                    sprite_sheet = "Seashell Hit"
+                elif self.biting:
                     sprite_sheet = "Seashell Bite"
-                elif self.hit_anim_timer > 0:
+                elif self.player_in_vision:
+                    sprite_sheet = "Seashell Fire"
+                else:
+                    sprite_sheet = "Idle"
+            else:
+                if self.hit_anim_timer > 0:
                     sprite_sheet = "Seashell Hit"
                 else:
-                    if not self.biting and self.player_in_vision:
-                        sprite_sheet = "Seashell Fire"
-                    else:
-                        sprite_sheet = "Idle"
+                    sprite_sheet = "Idle"
 
         sprite_sheet_name = sprite_sheet + "_" + self.direction
         if sprite_sheet_name in self.sprites:
@@ -319,7 +326,8 @@ class SeashellPearl(Enemy):
             distance = math.hypot(dx, dy)
             
             if distance <= self.bite_range:
-                player.get_hit(40, attacker=self)
+                if player.alive:
+                    player.get_hit(40, attacker=self)
                 self.bite_cooldown = 90
                 if self.bite_animation_timer == 0:
                     self.bite_animation_timer = 1

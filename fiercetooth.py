@@ -99,6 +99,11 @@ class FierceTooth(Enemy):
         Returns:
             str|bool: "attack", "shoot", or False.
         """
+        if not player or not player.alive:
+            self.player_in_vision = False
+            self.attacking = False
+            return False
+
         dx = player.rect.centerx - self.rect.centerx
         dy = player.rect.centery - self.rect.centery
         distance = math.hypot(dx, dy)
@@ -270,19 +275,19 @@ class FierceTooth(Enemy):
     def update_sprite(self, player):
         """
         Update enemy sprite based on the current state (idle/run/jump/fall/attack/recover/hit/dead).
+
+        Dead > Hit > Recover > Attack > Jump > Fall > Run > Idle. When the player is dead, the enemy doesn't attack or recover.
         """
         if not self.alive:
             sprite_sheet = "Dead"
         else:
-            if not player.alive:
-                sprite_sheet = "Idle"
-            else:
-                if self.post_attack_recovery:
-                    sprite_sheet = "Recover"  
+            if player and player.alive:
+                if self.hit_anim_timer > 0:
+                    sprite_sheet = "Hit"
+                elif self.post_attack_recovery:
+                    sprite_sheet = "Recover"
                 elif self.attacking:
                     sprite_sheet = "Attack"
-                elif self.hit_anim_timer > 0:
-                    sprite_sheet = "Hit"
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
@@ -292,7 +297,18 @@ class FierceTooth(Enemy):
                         sprite_sheet = "Run"
                     else:
                         sprite_sheet = "Idle"
-        
+            else:
+                if self.hit_anim_timer > 0:
+                    sprite_sheet = "Hit"
+                elif self.y_vel < 0:
+                    sprite_sheet = "Jump"
+                elif self.y_vel > 0:
+                    sprite_sheet = "Fall"
+                elif self.moving_left or self.moving_right:
+                    sprite_sheet = "Run"
+                else:
+                    sprite_sheet = "Idle"
+
         sprite_sheet_name = sprite_sheet + "_" + self.direction
         if sprite_sheet_name in self.sprites:
             sprites = self.sprites[sprite_sheet_name]
@@ -430,7 +446,7 @@ class FierceTooth(Enemy):
                 self.position.y = self.rect.y
                 self.y_vel = 0
                 self.jump_count = 0
-                if hasattr(player, "get_hit"):
+                if hasattr(player, "get_hit") and player.alive:
                     player.get_hit(20, attacker=self)
                     self.post_attack_recovery = True
                     self.attack_recovery_timer = 0
@@ -474,7 +490,7 @@ class FierceTooth(Enemy):
             player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
             if player_is_behind and self.turn_cooldown == 0:
                 self.direction = "left" if self.direction == "right" else "right"
-                # self.jump()
+                self.jump()
                 self.speed = 3
                 self.state = "running"
                 self.state_timer = 0
@@ -493,7 +509,8 @@ class FierceTooth(Enemy):
 
             if height_difference < 10:
                 if self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0 and self.y_vel < 1:
-                    player.get_hit(30, attacker=self)
+                    if player.alive:
+                        player.get_hit(30, attacker=self)
                     self.post_attack_recovery = True
                     self.attack_recovery_timer = 0
                     self.attack_cooldown = 60

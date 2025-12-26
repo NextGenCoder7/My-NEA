@@ -187,8 +187,8 @@ class Player(pygame.sprite.Sprite):
             self.speed = 0
 
         self.y_vel += self.GRAVITY
-        if self.y_vel > getattr(self, "death_fall_speed_cap", 15):
-            self.y_vel = getattr(self, "death_fall_speed_cap", 15)
+        if self.y_vel > self.death_fall_speed_cap:
+            self.y_vel = self.death_fall_speed_cap
 
         self.position.y += self.y_vel
         self.rect.topleft = (int(self.position.x), int(self.position.y))

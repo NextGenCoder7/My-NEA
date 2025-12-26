@@ -72,19 +72,19 @@ class PinkStar(Enemy):
     def update_sprite(self, player):
         """
         Update the enemy's sprite based on its current state (idle/run/jump/fall/attack/recover/hit/dead).
+
+        Same priority system as FierceTooth.
         """
         if not self.alive:
             sprite_sheet = "Dead"
         else:
-            if not player.alive:
-                sprite_sheet = "Idle"
-            else:
-                if self.post_attack_recovery:
-                    sprite_sheet = "Recover"  
+            if player and player.alive:
+                if self.hit_anim_timer > 0:
+                    sprite_sheet = "Hit"
+                elif self.post_attack_recovery:
+                    sprite_sheet = "Recover"
                 elif self.attacking:
                     sprite_sheet = "Attack"
-                elif self.hit_anim_timer > 0:
-                    sprite_sheet = "Hit"
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
@@ -94,6 +94,17 @@ class PinkStar(Enemy):
                         sprite_sheet = "Run"
                     else:
                         sprite_sheet = "Idle"
+            else:
+                if self.hit_anim_timer > 0:
+                    sprite_sheet = "Hit"
+                elif self.y_vel < 0:
+                    sprite_sheet = "Jump"
+                elif self.y_vel > 0:
+                    sprite_sheet = "Fall"
+                elif self.moving_left or self.moving_right:
+                    sprite_sheet = "Run"
+                else:
+                    sprite_sheet = "Idle"
 
         sprite_sheet_name = sprite_sheet + "_" + self.direction
         if sprite_sheet_name in self.sprites:
