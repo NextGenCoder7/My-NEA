@@ -166,6 +166,42 @@ class Player(pygame.sprite.Sprite):
 
                             self.position.x = self.rect.x
 
+    def handle_death(self, screen_height):
+        """
+        Run the death animation once: small upward impulse, spin onto back,
+        then fall off the bottom of the screen. It is safe to call every frame after death.
+        """
+        if self.alive:
+            return  
+        
+        if not getattr(self, 'death_anim_started', False):
+            self.death_anim_started = True
+            self.y_vel = -12  
+            self.jump_count = 2
+            self.death_rotation = 0
+            self.death_spin_speed = -8 if self.direction == "right" else 8
+            self.death_og_img = self.img.copy()
+            self.death_fall_speed_cap = 15
+            self.death_finished = False
+            self.velocity.x = 0
+            self.speed = 0
+
+        self.y_vel += self.GRAVITY
+        if self.y_vel > getattr(self, "death_fall_speed_cap", 15):
+            self.y_vel = getattr(self, "death_fall_speed_cap", 15)
+
+        self.position.y += self.y_vel
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+
+        self.death_rotation = (self.death_rotation + self.death_spin_speed) % 360
+        rotated = pygame.transform.rotate(self.death_og_img, self.death_rotation)
+        old_center = self.rect.center
+        self.img = rotated
+        self.rect = self.img.get_rect(center=old_center)
+
+        if self.rect.top > screen_height:
+            self.death_finished = True
+
     def jump(self):
         """
         Makes the player jump by applying a vertical velocity.

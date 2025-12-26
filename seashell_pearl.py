@@ -319,8 +319,8 @@ class SeashellPearl(Enemy):
             distance = math.hypot(dx, dy)
             
             if distance <= self.bite_range:
-                player.get_hit(30, attacker=self)
-                self.bite_cooldown = 30
+                player.get_hit(40, attacker=self)
+                self.bite_cooldown = 90
                 if self.bite_animation_timer == 0:
                     self.bite_animation_timer = 1
 

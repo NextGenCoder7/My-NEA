@@ -146,7 +146,7 @@ def main(win):
                     fiercetooth_group, cannon_ball_group, pink_star_group, collectible_gem_group, grenade_box_group)
 
         for enemy in fiercetooth_group:  
-            if enemy.alive:
+            if enemy.alive and player.alive:
                 enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group)
                 enemy.handle_movement()           
                 enemy.update_sprite(player)
@@ -162,7 +162,7 @@ def main(win):
                     enemy.was_hit_from_behind = False
 
         for enemy in seashell_group:
-            if enemy.alive:
+            if enemy.alive and player.alive:
                 enemy.update(player, PEARL_SPRITES, pearl_group)        
                 enemy.update_sprite(player)
 
@@ -171,7 +171,7 @@ def main(win):
                     enemy.was_hit_from_behind = False
 
         # for enemy in pink_star_group:
-        #     if enemy.alive:
+        #     if enemy.alive and player.alive:
         #         enemy.update(player)   
         #         enemy.handle_movement()
         #         enemy.update_sprite(player)
@@ -187,36 +187,36 @@ def main(win):
             if player.throw_grenade:
                 player.launch_grenade(GRENADE_SPRITES, player_grenade_group)
 
+            for ammo in player_ammo_group:
+                ammo.update(enemies)   
+                # ammo.update(pink_star_group)
+
+            for grenade in player_grenade_group:
+                grenade.update(player, enemies)
+                # grenade.update(player, pink_star_group)
+                grenade.update_sprite()
+
+            for cannon_ball in cannon_ball_group:
+                cannon_ball.update(player)
+                cannon_ball.update_sprite()
+
+            for pearl in pearl_group:
+                pearl.update(player)
+                pearl.update_sprite()
+
+            for gem in collectible_gem_group:
+                gem.update(player)
+                gem.update_sprite()
+
+            for grenade_box in grenade_box_group:
+                grenade_box.update(player)
+
             if scroll_left and scroll > 0:
                 scroll -= 5 * scroll_speed
             if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
                 scroll += 5 * scroll_speed
         else:
-            pass    # need to code player disappearing animation, maybe I should do it in player class
-
-        for ammo in player_ammo_group:
-            ammo.update(enemies)   
-            # ammo.update(pink_star_group)
-
-        for grenade in player_grenade_group:
-            grenade.update(player, enemies)
-            # grenade.update(player, pink_star_group)
-            grenade.update_sprite()
-
-        for cannon_ball in cannon_ball_group:
-            cannon_ball.update(player)
-            cannon_ball.update_sprite()
-
-        for pearl in pearl_group:
-            pearl.update(player)
-            pearl.update_sprite()
-
-        for gem in collectible_gem_group:
-            gem.update(player)
-            gem.update_sprite()
-
-        for grenade_box in grenade_box_group:
-            grenade_box.update(player)
+            player.handle_death(HEIGHT)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -225,7 +225,8 @@ def main(win):
                 if event.key == pygame.K_ESCAPE:
                     run = False
                 if event.key in (pygame.K_UP, pygame.K_w):
-                    player.jump()
+                    if player.alive:
+                        player.jump()
                 if event.key == pygame.K_SPACE:
                     if player.alive:
                         player.shoot = True
