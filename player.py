@@ -160,7 +160,7 @@ class Player(pygame.sprite.Sprite):
                 if enemy.alive and self.collide(enemy):   
                     dx = abs(self.rect.centerx - enemy.rect.centerx)
 
-                    if self.y_vel > 2 and dx <= (enemy.rect.width // 2 + 7):   
+                    if self.y_vel > 2 and dx <= (enemy.rect.width // 2):   
                         self.y_vel = -11
                         self.jump_count = 1
                         
@@ -189,7 +189,7 @@ class Player(pygame.sprite.Sprite):
                     if self.collide(enemy):                
                         dx = abs(self.rect.centerx - enemy.rect.centerx)
                         
-                        if self.y_vel > 2 and dx <= (enemy.rect.width // 2 + 7):   
+                        if self.y_vel > 2 and dx <= (enemy.rect.width // 2):   
                             continue
                         else:
                             if self.rect.centerx < enemy.rect.centerx:

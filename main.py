@@ -161,6 +161,9 @@ def main(win):
                 if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
                     enemy.shoot(CANNON_BALL_SPRITES, cannon_ball_group)
                     enemy.was_hit_from_behind = False
+            else:
+                if not enemy.death_handled:
+                    enemy.handle_death()
 
         for enemy in seashell_group:
             if enemy.alive:

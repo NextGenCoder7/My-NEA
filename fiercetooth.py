@@ -58,6 +58,9 @@ class FierceTooth(Enemy):
         """
         super().__init__(x, y, x_vel, sprites, health)
 
+        self.death_fall_speed_cap = 1
+        self.death_handled = False
+
         self.vision_range = 320
         self.vision_angle = 40
         self.player_in_vision = False
@@ -84,6 +87,22 @@ class FierceTooth(Enemy):
         self.hit_anim_timer = 0
 
         self.enemy_type = "Fiercetooth"
+
+    def handle_death(self):
+        self.y_vel += self.GRAVITY
+        if self.y_vel > self.death_fall_speed_cap:
+            self.y_vel = self.death_fall_speed_cap
+
+        self.velocity.y += self.y_vel
+
+        if self.rect.bottom + self.velocity.y > 400:
+            self.velocity.y = 400 - self.rect.bottom
+            self.jump_count = 0
+            self.y_vel = 0
+            self.death_handled = True
+
+        self.position += self.velocity
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
         
     def check_vision_cone(self, player):
         """
