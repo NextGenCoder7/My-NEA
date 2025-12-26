@@ -38,6 +38,7 @@ def draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_grou
     pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor
 
     player.draw(win)
+    player.draw_stamina_bar(win)
     player.draw_health_bar(win)
     player.draw_ammo_count(win)
     player.draw_grenade_count(win)
@@ -114,7 +115,7 @@ def main(win):
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
-    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 3, GEM_SPRITES, GRENADE_SPRITES)
+    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 5, GEM_SPRITES, GRENADE_SPRITES)
 
     enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
@@ -239,6 +240,12 @@ def main(win):
                 if event.key == pygame.K_x:
                     if player.alive:
                         player.draw_num_ammo_timer = player.NUM_AMMO_DURATION
+                if event.key == pygame.K_h:
+                    if player.alive:
+                        player.health_bar_timer = player.HEALTH_BAR_DURATION
+                if event.key == pygame.K_c:
+                    if player.alive:
+                        player.stamina_bar_timer = player.STAMINA_BAR_DURATION
     
     pygame.quit()
 

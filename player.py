@@ -41,9 +41,13 @@ class Player(pygame.sprite.Sprite):
     """
 
     ANIMATION_DELAY = 3
-    HEALTH_BAR_DURATION = NUM_AMMO_DURATION = NUM_GRENADES_DURATION = 180
+    HEALTH_BAR_DURATION = STAMINA_BAR_DURATION = NUM_AMMO_DURATION = NUM_GRENADES_DURATION = 180
     GRAVITY = 0.7  
     HIT_ANIM_DURATION = 120
+    SPRINT_SPEED = 5
+    SPRINT_DEPLETION = 0.6
+    SPRINT_RECOVERY = 0.3
+    SPRINT_THRESHOLD = 10
 
     def __init__(self, x, y, x_vel, SPRITES, ammo, grenades, GEM_SPRITES, GRENADE_SPRITES):
         """
@@ -65,6 +69,7 @@ class Player(pygame.sprite.Sprite):
         self.animation_count = 0
         self.position = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
+        self.base_speed = x_vel
         self.speed = x_vel
         self.y_vel = 0
         self.moving_left = False
@@ -79,6 +84,11 @@ class Player(pygame.sprite.Sprite):
         self.throw_grenade = False
         self.shoot_cooldown = 0
         self.grenade_cooldown = 0
+        self.sprint_allowed = True
+        self.stamina = 100
+        self.max_stamina = self.stamina
+        self.stamina_bar_timer = 0
+        self.is_sprinting = False
         self.health = 400
         self.max_health = self.health
         self.health_bar_timer = 0
@@ -95,18 +105,41 @@ class Player(pygame.sprite.Sprite):
             keys (Iterable): Collection of boolean values representing the state of keyboard keys.
             enemies_group (Group, optional): Pygame Group containing enemy objects for collision detection.
         """
+        shift_pressed = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            if shift_pressed and self.stamina > 0 and self.sprint_allowed:
+                self.speed = self.SPRINT_SPEED
+                self.is_sprinting = True
+                self.stamina_bar_timer = self.STAMINA_BAR_DURATION
+            else:
+                self.speed = self.base_speed
+                self.is_sprinting = False
+
             self.velocity.x = -self.speed
             self.moving_left = True
             self.direction = "left"
+
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            if shift_pressed and self.stamina > 0 and self.sprint_allowed:
+                self.speed = self.SPRINT_SPEED
+                self.is_sprinting = True
+                self.stamina_bar_timer = self.STAMINA_BAR_DURATION
+            else:
+                self.speed = self.base_speed
+                self.is_sprinting = False
+
             self.velocity.x = self.speed
             self.moving_right = True
             self.direction = "right"
+
+        else:
+            self.speed = self.base_speed
+            self.is_sprinting = False
 
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
@@ -176,12 +209,12 @@ class Player(pygame.sprite.Sprite):
         
         if not getattr(self, 'death_anim_started', False):
             self.death_anim_started = True
-            self.y_vel = -12  
+            self.y_vel = -13  
             self.jump_count = 2
             self.death_rotation = 0
             self.death_spin_speed = -8 if self.direction == "right" else 8
             self.death_og_img = self.img.copy()
-            self.death_fall_speed_cap = 15
+            self.death_fall_speed_cap = 12
             self.death_finished = False
             self.velocity.x = 0
             self.speed = 0
@@ -266,6 +299,52 @@ class Player(pygame.sprite.Sprite):
         else:
             return False  
 
+    def draw_stamina_bar(self, win):
+        """
+        Draws stamina bar above the player when the player is sprinting.
+
+        Args:
+            win (Surface): The surface on which to draw the stamina bar.
+        """
+        if self.stamina <= self.max_stamina and self.stamina_bar_timer > 0:
+            bar_width = 40
+            bar_height = 6
+            bar_x = self.rect.centerx - bar_width // 2
+            if self.health_bar_timer > 0:
+                if self.draw_num_ammo_timer > 0 or self.draw_num_grenades_timer > 0:
+                    bar_y = self.rect.top - 29
+                else:
+                    bar_y = self.rect.top - 17
+            elif self.draw_num_ammo_timer > 0 or self.draw_num_grenades_timer > 0:
+                bar_y = self.rect.top - 17
+            else:
+                bar_y = self.rect.top - 5
+
+            stamina_ratio = self.stamina / self.max_stamina
+            current_stamina_width = int(bar_width * stamina_ratio)
+
+            pygame.draw.rect(win, GRAY, (bar_x, bar_y, bar_width, bar_height))
+
+            if current_stamina_width > 0:
+                pygame.draw.rect(win, CYAN, (bar_x, bar_y, current_stamina_width, bar_height))
+
+            if self.max_stamina > 0:
+                threshold_ratio = float(self.SPRINT_THRESHOLD) / float(self.max_stamina)
+            else:
+                threshold_ratio = 0.0
+
+            threshold_px = int(bar_width * threshold_ratio)
+            if threshold_px < 0:
+                threshold_px = 0
+            if threshold_px > bar_width:
+                threshold_px = bar_width
+
+            line_x = bar_x + threshold_px
+            pygame.draw.line(win, BLACK, (line_x, bar_y), (line_x, bar_y + bar_height), 1)
+
+            pygame.draw.rect(win, BLACK, (bar_x, bar_y, bar_width, bar_height), 1)
+
+
     def draw_health_bar(self, win):
         """
         Draws health bar above the player when the player is hit.
@@ -285,12 +364,12 @@ class Player(pygame.sprite.Sprite):
             health_ratio = self.health / self.max_health
             current_health_width = int(bar_width * health_ratio)
 
-            pygame.draw.rect(win, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+            pygame.draw.rect(win, RED, (bar_x, bar_y, bar_width, bar_height))
 
             if current_health_width > 0:
-                pygame.draw.rect(win, (0, 255, 0), (bar_x, bar_y, current_health_width, bar_height))
+                pygame.draw.rect(win, LIGHT_GREEN, (bar_x, bar_y, current_health_width, bar_height))
 
-            pygame.draw.rect(win, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 1)
+            pygame.draw.rect(win, BLACK, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw_ammo_count(self, win):
         """
@@ -407,6 +486,8 @@ class Player(pygame.sprite.Sprite):
             self.shoot_cooldown -= 1
         if self.grenade_cooldown > 0:
             self.grenade_cooldown -= 1
+        if self.stamina_bar_timer > 0:
+            self.stamina_bar_timer -= 1
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
         if self.hit_anim_timer > 0:
@@ -415,3 +496,22 @@ class Player(pygame.sprite.Sprite):
             self.draw_num_ammo_timer -= 1
         if self.draw_num_grenades_timer > 0:
             self.draw_num_grenades_timer -= 1
+
+        if self.is_sprinting:
+            self.stamina -= self.SPRINT_DEPLETION
+            if self.stamina <= 0:
+                self.stamina = 0
+                self.is_sprinting = False
+                self.speed = self.base_speed
+                self.sprint_allowed = False
+        else:
+            if self.stamina < self.max_stamina:
+                self.stamina += self.SPRINT_RECOVERY
+                if self.stamina > self.max_stamina:
+                    self.stamina = self.max_stamina
+
+            if not self.is_sprinting:
+                if self.stamina >= self.SPRINT_THRESHOLD:
+                    self.sprint_allowed = True
+                else:
+                    self.sprint_allowed = False
