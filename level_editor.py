@@ -119,7 +119,7 @@ def main_level_editor():
             button_col = 0
 
     current_tile = 0
-    level = 1
+    level = 0
 
     world_data = []
     for _ in range(ROWS):
