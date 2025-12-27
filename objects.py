@@ -509,13 +509,14 @@ class Grenade(pygame.sprite.Sprite):
     AIR_DRAG = 0.995
     ROLL_DECEL = 1.95
     ROLL_STOP_THRESHOLD = 0.6
-    THROW_SPEED = 8
+    THROW_SPEED = 5
     THROW_VY = -12
     ANIMATION_DELAY = 3
     SPIN_FACTOR = 0.7
     BLAST_DURATION = 0.3 * FPS
+    MAX_CHARGE_MULTIPLIER = 3.0
 
-    def __init__(self, x, y, sprites, direction):
+    def __init__(self, x, y, sprites, direction, strength: float=1.0):
         """
         Initialise a Grenade Object.
 
@@ -524,6 +525,7 @@ class Grenade(pygame.sprite.Sprite):
             y: (float): Initial y position.
             sprites (dict): Sprite frames for grenade and explosion animations.
             direction (Vector2): Direction vector for initial throw.
+            strength (float): horizontal speed multiplier (1 is default).
         """
         super().__init__()
 
@@ -533,7 +535,16 @@ class Grenade(pygame.sprite.Sprite):
         self.rotation_angle = 0
         self.position = pygame.math.Vector2(x, y)
         self.direction = direction
-        self.velocity = pygame.math.Vector2(self.direction.x * self.THROW_SPEED, self.THROW_VY)
+
+        try:
+            s = float(strength)
+        except Exception:
+            s = 1.0
+        if s < 0.1:
+            s = 0.1
+        if s > self.MAX_CHARGE_MULTIPLIER:
+            s = self.MAX_CHARGE_MULTIPLIER
+        self.velocity = pygame.math.Vector2(self.direction.x * self.THROW_SPEED * s, self.THROW_VY)
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
         self.mask = pygame.mask.from_surface(self.img)
         self.animation_count = 0

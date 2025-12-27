@@ -1,4 +1,5 @@
 import pygame
+import math
 from constants import *
 from objects import PurpleGem, Grenade
 from utils import draw_text
@@ -48,6 +49,7 @@ class Player(pygame.sprite.Sprite):
     SPRINT_DEPLETION = 0.6
     SPRINT_RECOVERY = 0.3
     SPRINT_THRESHOLD = 10
+    GRENADE_MAX_CHARGE_SECONDS = 5.0
 
     def __init__(self, x, y, x_vel, SPRITES, ammo, grenades, GEM_SPRITES, GRENADE_SPRITES):
         """
@@ -81,9 +83,10 @@ class Player(pygame.sprite.Sprite):
         self.alive = True
         self.jump_count = 0
         self.shoot = False
-        self.throw_grenade = False
         self.shoot_cooldown = 0
         self.grenade_cooldown = 0
+        self.grenade_charging = False
+        self.grenade_charge_time = 0.0
         self.sprint_allowed = True
         self.stamina = 100
         self.max_stamina = self.stamina
@@ -375,7 +378,7 @@ class Player(pygame.sprite.Sprite):
         """
         Draws the number of ammo above the player when the player collects more ammo.
         """
-        if (self.ammo > 0 and self.draw_num_ammo_timer > 0):
+        if (self.ammo >= 0 and self.draw_num_ammo_timer > 0):
             ammo_img = self.gem_sprites["player_ammo"][0]
             ammo_img = pygame.transform.scale(ammo_img, (TILE_SIZE // 4, TILE_SIZE // 4))
             ammo_x = self.rect.left - 5
@@ -388,7 +391,7 @@ class Player(pygame.sprite.Sprite):
         """
         Draws the number of grenades above the player when the player collects more grenades.
         """
-        if (self.grenades > 0 and self.draw_num_grenades_timer > 0):
+        if (self.grenades >= 0 and self.draw_num_grenades_timer > 0):
             grenade_img = self.grenade_sprites["Grenade Idle"][0]
             grenade_img = pygame.transform.scale(grenade_img, (TILE_SIZE // 4, TILE_SIZE // 4))
             grenade_x = self.rect.right - 13
@@ -422,21 +425,45 @@ class Player(pygame.sprite.Sprite):
 
         self.shoot = False
 
-    def launch_grenade(self, grenade_sprites, grenade_group):
-        if self.grenade_cooldown == 0 and self.grenades > 0 and self.hit_anim_timer == 0:
-            self.grenade_cooldown = 100
-            self.grenades -= 1
+    def launch_grenade(self, grenade_sprites, grenade_group, charge_seconds: float=0.0):
+        """
+        Throw a grenade. `charge_seconds` is mapped to a strength multiplier using
+        an ease-out square-root curve (sqrt). charge_seconds is clamped to
+        GRENADE_MAX_CHARGE_SECONDS.
+        """
+        if self.grenade_cooldown != 0 or self.grenades <= 0 or self.hit_anim_timer != 0:
+            self.grenade_charging = False
+            self.grenade_charge_time = 0.0
+            return
 
-            if self.direction == "right":
-                grenade_direction = pygame.math.Vector2(1, 0)
-                grenade = Grenade(self.rect.right - self.img.get_width() // 2, self.rect.centery, grenade_sprites, grenade_direction)
-            else:
-                grenade_direction = pygame.math.Vector2(-1, 0)
-                grenade = Grenade(self.rect.left, self.rect.centery, grenade_sprites, grenade_direction)
+        if charge_seconds < 0.0:
+            charge_seconds = 0.0
+        if charge_seconds > self.GRENADE_MAX_CHARGE_SECONDS:
+            charge_seconds = self.GRENADE_MAX_CHARGE_SECONDS
 
-            grenade_group.add(grenade)
+        if self.GRENADE_MAX_CHARGE_SECONDS > 0:
+            t = charge_seconds / self.GRENADE_MAX_CHARGE_SECONDS
+        else:
+            t = 0.0
 
-        self.throw_grenade = False
+        ease = math.sqrt(t)
+        max_multiplier = Grenade.MAX_CHARGE_MULTIPLIER
+        strength = 1.0 + ease * (max_multiplier - 1.0)
+
+        self.grenade_cooldown = 100
+        self.grenades -= 1
+
+        if self.direction == "right":
+            grenade_direction = pygame.math.Vector2(1, 0)
+            grenade = Grenade(self.rect.right - self.img.get_width() // 2, self.rect.centery, grenade_sprites, grenade_direction, strength=strength)
+        else:
+            grenade_direction = pygame.math.Vector2(-1, 0)
+            grenade = Grenade(self.rect.left, self.rect.centery, grenade_sprites, grenade_direction, strength=strength)
+
+        grenade_group.add(grenade)
+
+        self.grenade_charging = False
+        self.grenade_charge_time = 0.0
 
     def update_sprite(self):
         """

@@ -115,7 +115,7 @@ def main(win):
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
     PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
 
-    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 5, GEM_SPRITES, GRENADE_SPRITES)
+    player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 50, GEM_SPRITES, GRENADE_SPRITES)
 
     enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
     enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
@@ -142,6 +142,11 @@ def main(win):
         clock.tick(FPS)
 
         keys = pygame.key.get_pressed()
+
+        if keys[pygame.K_g] and player.alive and player.grenade_charging:
+            player.grenade_charge_time += clock.get_time() / 1000.0
+            if player.grenade_charge_time > player.GRENADE_MAX_CHARGE_SECONDS:
+                player.grenade_charge_time = player.GRENADE_MAX_CHARGE_SECONDS
 
         draw_window(win, bg1, player, scroll, player_ammo_group, player_grenade_group, seashell_group, pearl_group, 
                     fiercetooth_group, cannon_ball_group, pink_star_group, collectible_gem_group, grenade_box_group)
@@ -189,8 +194,6 @@ def main(win):
 
             if player.shoot:
                 player.shoot_ammo(GEM_SPRITES, player_ammo_group)
-            if player.throw_grenade:
-                player.launch_grenade(GRENADE_SPRITES, player_grenade_group)
 
             if scroll_left and scroll > 0:
                 scroll -= 5 * scroll_speed
@@ -226,6 +229,7 @@ def main(win):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     run = False
@@ -237,7 +241,8 @@ def main(win):
                         player.shoot = True
                 if event.key == pygame.K_g:
                     if player.alive:
-                        player.throw_grenade = True
+                        player.grenade_charging = True
+                        player.grenade_charge_time = 0.0
                 if event.key == pygame.K_z:
                     if player.alive:
                         player.draw_num_grenades_timer = player.NUM_GRENADES_DURATION
@@ -250,6 +255,12 @@ def main(win):
                 if event.key == pygame.K_c:
                     if player.alive:
                         player.stamina_bar_timer = player.STAMINA_BAR_DURATION
+
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_g:
+                    if player.alive and player.grenade_charging:
+                        player.launch_grenade(GRENADE_SPRITES, player_grenade_group, 
+                                              charge_seconds=player.grenade_charge_time)
     
     pygame.quit()
 
