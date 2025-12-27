@@ -544,7 +544,13 @@ class Grenade(pygame.sprite.Sprite):
             s = 0.1
         if s > self.MAX_CHARGE_MULTIPLIER:
             s = self.MAX_CHARGE_MULTIPLIER
-        self.velocity = pygame.math.Vector2(self.direction.x * self.THROW_SPEED * s, self.THROW_VY)
+        
+        vx = self.direction.x * self.THROW_SPEED * s
+        vy_multiplier = 1.0 + (s - 1.0) * 0.125
+        vy = self.THROW_VY * vy_multiplier
+        self.velocity = pygame.math.Vector2(vx, vy)
+        self._roll_decel = self.ROLL_DECEL * (1.0 + (s - 1.0) * 0.5)
+        self._roll_stop_threshold = self.ROLL_STOP_THRESHOLD * (1.0 + (s - 1.0) * 1.0)
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
         self.mask = pygame.mask.from_surface(self.img)
         self.animation_count = 0
@@ -650,12 +656,12 @@ class Grenade(pygame.sprite.Sprite):
                     self.velocity.y = 0
 
                 if self.velocity.x > 0:
-                    self.velocity.x -= self.ROLL_DECEL
-                    if self.velocity.x < self.ROLL_STOP_THRESHOLD:
+                    self.velocity.x -= self._roll_decel
+                    if self.velocity.x < self._roll_stop_threshold:
                         self.velocity.x = 0
                 elif self.velocity.x < 0:
-                    self.velocity.x += self.ROLL_DECEL
-                    if self.velocity.x > -self.ROLL_STOP_THRESHOLD:
+                    self.velocity.x += self._roll_decel
+                    if self.velocity.x > -self._roll_stop_threshold:
                         self.velocity.x = 0
 
             self.rect.topleft = (round(self.position.x), round(self.position.y))
