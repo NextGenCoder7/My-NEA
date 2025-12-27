@@ -137,6 +137,8 @@ def main(win):
     scroll = 0
     scroll_speed = 1
 
+    level = 0
+
     run = True
     while run:
         clock.tick(FPS)

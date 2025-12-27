@@ -155,6 +155,8 @@ class CollectibleGem(pygame.sprite.Sprite):
                         player.health = player.max_health
 
                     player.health_bar_timer = player.HEALTH_BAR_DURATION
+                elif self.gem_type == "coin":
+                    player.coin_count += 1
 
 
 # Purple Gem class (moves horizontally across the screen as player ammo)

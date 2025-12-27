@@ -98,6 +98,7 @@ class Player(pygame.sprite.Sprite):
         self.hit_anim_timer = 0
         self.draw_num_ammo_timer = 0
         self.draw_num_grenades_timer = 0
+        self.coin_count = 0
         self.is_player = True
 
     def handle_movement(self, keys, enemies_group=None):
