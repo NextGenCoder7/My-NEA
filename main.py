@@ -6,7 +6,7 @@ from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
 from objects import CollectibleGem, GrenadeBox
-from world import load_level, load_tile_images, ConstraintRect
+from utils import load_level, load_tile_images
 
 pygame.init()
 
@@ -16,7 +16,7 @@ pygame.display.set_caption(TITLE)
 
 class World:
 
-    GEM_SPRITES = load_gem_sprite_sheets(16, 16)
+    GEM_SPRITES = load_gem_and_hazard_sprite_sheets(16, 16)
     GRENADE_SPRITES = load_ammo_sprites('Player')
     CANNON_BALL_SPRITES = load_ammo_sprites('Fierce Tooth')
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')

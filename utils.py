@@ -1,6 +1,7 @@
 # This file contains utility functions for the game
 
 import pygame
+import json
 from constants import *
 from os import listdir
 from os.path import isfile, join
@@ -74,7 +75,7 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
     return all_sprites
 
 
-def load_gem_sprite_sheets(width, height):
+def load_gem_and_hazard_sprite_sheets(width, height):         # TODO, add choice for hazards (saw and spikes)
     """
     Loads gem sprite sheets from the assets folder and returns a dictionary of frames.
 
@@ -247,3 +248,33 @@ def load_enemy_sprites(enemy_type, width, height):
                 continue
     
     return all_sprites
+
+
+def load_level(level_num):
+    world_data = []
+
+    for row in range(ROWS):
+        r = [-1] * MAX_COLS
+        world_data.append(r)
+
+    with open(f"assets/Levels/level_{level_num}.json", "r") as file:
+        data = json.load(file)
+
+    for y, row in enumerate(data):
+        for x, tile in enumerate(row):
+            world_data[y][x] = tile
+
+    return world_data
+
+
+def load_tile_images():
+    img_list = []
+    for x in range(TILE_TYPES):
+        img = load_image(f'{x + 1}', 'Level Editor Tiles')
+        img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))   
+        if x == 5:
+            img = pygame.transform.flip(img, True, False)
+
+        img_list.append(img)
+
+    return img_list
