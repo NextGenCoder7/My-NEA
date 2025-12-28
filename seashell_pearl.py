@@ -71,6 +71,33 @@ class SeashellPearl(Enemy):
 
         self.enemy_type = "Seashell Pearl"
 
+    def handle_movement(self):
+        self.velocity.y = 0
+
+        self.y_vel += self.GRAVITY
+        if self.y_vel > 10:
+            self.y_vel = 10
+        
+        self.velocity.y += self.y_vel
+        
+        if self.rect.bottom + self.velocity.y > 400:
+            self.velocity.y = 400 - self.rect.bottom
+            self.jump_count = 0
+            self.y_vel = 0
+        
+        self.position += self.velocity
+
+        world_right = MAX_COLS * TILE_SIZE
+
+        if self.rect.left + self.velocity.x <= 0:
+            self.direction = "right"
+            self.velocity.x = 0
+            self.position.x = 0
+        elif self.rect.right + self.velocity.x >= world_right:
+            self.direction = "left"
+            self.velocity.x = 0
+            self.position.x = WIDTH - self.rect.width
+
     def check_vision_cone(self, player):
         """
         Determine whether the player is within the enemy's vision cone.

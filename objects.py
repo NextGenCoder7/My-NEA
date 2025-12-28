@@ -76,7 +76,7 @@ class CollectibleGem(pygame.sprite.Sprite):
 
     ANIMATION_DELAY = 5
 
-    def __init__(self, x, y, sprites, gem_type):
+    def __init__(self, x, y, sprites, tile_number):
         """
         Initialise a collectible Gem.
 
@@ -88,8 +88,14 @@ class CollectibleGem(pygame.sprite.Sprite):
         super().__init__()
 
         self.sprites = sprites
-        self.gem_type = gem_type
-        self.img = self.sprites[gem_type][0]
+        self.gem_type = "player_ammo"
+        if tile_number == 22:
+            self.gem_type = "coin"
+        elif tile_number == 23:
+            self.gem_type = "player_ammo"
+        elif tile_number == 24:
+            self.gem_type = "player_health"
+        self.img = self.sprites[self.gem_type][0]
         self.position = pygame.math.Vector2(x, y)
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
         self.mask = pygame.mask.from_surface(self.img)
@@ -671,7 +677,7 @@ class Grenade(pygame.sprite.Sprite):
 
         elif self.state == "blast":
             if not self._blast_applied:
-                max_damage_distance = math.hypot(self.rect.width // 2, self.rect.height // 2) + 10
+                max_damage_distance = math.hypot(self.rect.width // 2, self.rect.height // 2) + 15
 
                 for enemy in enemies_group:
                     if not enemy.alive:
@@ -682,9 +688,9 @@ class Grenade(pygame.sprite.Sprite):
                     distance = math.hypot(dx, dy)
 
                     if distance <= max_damage_distance:
-                        if distance <= (0.5 * max_damage_distance):
+                        if distance <= (0.6 * max_damage_distance):
                             enemy.get_hit(120, attacker=self)
-                        elif distance <= (0.75 * max_damage_distance):
+                        elif distance <= (0.8 * max_damage_distance):
                             enemy.get_hit(90, attacker=self)
                         else:
                             enemy.get_hit(60, attacker=self)
@@ -695,9 +701,9 @@ class Grenade(pygame.sprite.Sprite):
                     distance = math.hypot(player_dx, player_dy)
 
                     if distance <= max_damage_distance:
-                        if distance <= (0.5 * max_damage_distance):
+                        if distance <= (0.6 * max_damage_distance):
                             player.get_hit(200, attacker=self)
-                        elif distance <= (0.75 * max_damage_distance):
+                        elif distance <= (0.8 * max_damage_distance):
                             player.get_hit(150, attacker=self)
                         else:
                             player.get_hit(100, attacker=self)

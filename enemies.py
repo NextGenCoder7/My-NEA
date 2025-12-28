@@ -130,11 +130,13 @@ class Enemy(pygame.sprite.Sprite):
         
         self.position += self.velocity
 
+        world_right = MAX_COLS * TILE_SIZE
+
         if self.rect.left + self.velocity.x <= 0:
             self.direction = "right"
             self.velocity.x = 0
             self.position.x = 0
-        elif self.rect.right + self.velocity.x >= WIDTH:
+        elif self.rect.right + self.velocity.x >= world_right:
             self.direction = "left"
             self.velocity.x = 0
             self.position.x = WIDTH - self.rect.width
