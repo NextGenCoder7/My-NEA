@@ -83,7 +83,8 @@ class CollectibleGem(pygame.sprite.Sprite):
         Args:
             x (float): X-coordinate of the gem's position.
             y (float): Y-coordinate of the gem's position.
-            img (Surface): Pygame Surface used to draw the gem.
+            sprites (dict): the sprite sheets for hazards.
+            tile_number (int): the tile number when processing data in World class.
         """
         super().__init__()
 
@@ -163,6 +164,47 @@ class CollectibleGem(pygame.sprite.Sprite):
                     player.coin_count += 1
 
 
+class PurpleGem(CollectibleGem):
+
+    def __init__(self, x, y, sprites, gem_type, direction):
+        """
+        Initialise a PurpleGem which acts as player's projectile.
+
+        Args:
+            x (float): Initial x position.
+            y (float): Initial y position.
+            sprites (dict): the sprite sheets for hazards.
+            direction (Vector2): Direction vector the projectile will travel.
+        """
+        super().__init__(x, y, sprites, gem_type)
+
+        base_img = self.sprites[self.gem_type][0]
+        self.img = pygame.transform.scale(base_img, (TILE_SIZE // 4, TILE_SIZE // 4))
+        self.speed = 10
+        self.direction = direction
+        self.velocity = pygame.math.Vector2(0, 0)
+
+    def update(self, enemies_group):
+        """
+        Move the projectile and check collision with enemies or screen bounds.
+
+        Args:
+            enemies_group (Group): Pygame Group of enemies to test collisions with.
+        """
+        self.position += self.velocity
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+        
+        if self.rect.right < 0 or self.rect.left > WIDTH:
+            self.kill()
+
+        for enemy in enemies_group:
+            if self.collide(enemy):
+                if enemy.alive:
+                    enemy.get_hit(20, attacker=self)
+                    self.kill()
+
+
 class Hazard(pygame.sprite.Sprite):
 
     ANIMATION_DELAY = 5
@@ -174,7 +216,8 @@ class Hazard(pygame.sprite.Sprite):
         Args:
             x (float): X-coordinate of the hazard's position.
             y (float): Y-coordinate of the hazard's position.
-            img (Surface): Pygame Surface used to draw the hazard.
+            sprites (dict): the sprite sheets for hazards.
+            tile_number (int): the tile number when processing data in World class.
         """
         super().__init__()
 
@@ -245,45 +288,81 @@ class Hazard(pygame.sprite.Sprite):
                     player.get_hit(50, attacker=self)
 
 
-class PurpleGem(CollectibleGem):
+class GameFlag(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, sprites, gem_type, direction):
+    ANIMATION_DELAY = 5
+
+    def __init__(self, x, y, sprites, tile_number):
+        super().__init__()
+
+        self.sprites = sprites
+        self.flag_type = "Checkpoint_Flag_Idle1"
+        if tile_number == 17:
+            self.flag_type = "Pointer_Idle"
+        self.img = self.sprites[self.flag_type][0]
+        self.position = pygame.math.Vector2(x, y)
+        self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
+        self.mask = pygame.mask.from_surface(self.img)
+        self.animation_count = 0
+
+        if self.flag_type == "Checkpoint_Flag_Idle1":
+            self.is_checkpoint = True
+        elif self.flag_type == "Pointer_Idle":
+            self.is_level_end = True
+
+    def collide(self, obj):
         """
-        Initialise a PurpleGem which acts as player's projectile.
+        Check collision between this flag and another sprite using masks.
 
         Args:
-            x (float): Initial x position.
-            y (float): Initial y position.
-            img (Surface): Sprite image for the projectile.
-            direction (Vector2): Direction vector the projectile will travel.
-        """
-        super().__init__(x, y, sprites, gem_type)
+            obj (Sprite): Other sprite to test collision against.
 
-        base_img = self.sprites[self.gem_type][0]
-        self.img = pygame.transform.scale(base_img, (TILE_SIZE // 4, TILE_SIZE // 4))
-        self.speed = 10
-        self.direction = direction
-        self.velocity = pygame.math.Vector2(0, 0)
-
-    def update(self, enemies_group):
+        Returns:
+            bool: True if masks overlap, False otherwise.
         """
-        Move the projectile and check collision with enemies or screen bounds.
+
+        if self.rect.colliderect(obj.rect):
+            offset_x = obj.rect.x - self.rect.x
+            offset_y = obj.rect.y - self.rect.y
+            return self.mask.overlap(obj.mask, (offset_x, offset_y)) is not None
+        else:
+            return False
+
+    def draw(self, win):
+        """
+        Draw the flag on the provided surface.
+        """
+        win.blit(self.img, self.rect)
+
+    def update_sprite(self):
+        """
+        Update flag sprite animation frame.
+        """
+        sprite_sheet_name = self.flag_type
+        
+        if sprite_sheet_name in self.sprites:
+            sprites = self.sprites[sprite_sheet_name]
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.img = sprites[sprite_index]
+
+        self.animation_count += 1
+
+    def update(self, player):
+        """
+        Update flag position/mask. If player collides with it, that's the player's checkpoint if they die or exit the program. 
 
         Args:
-            enemies_group (Group): Pygame Group of enemies to test collisions with.
+            player (Player): Player object used to detect collision.
         """
-        self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
-        
-        if self.rect.right < 0 or self.rect.left > WIDTH:
-            self.kill()
 
-        for enemy in enemies_group:
-            if self.collide(enemy):
-                if enemy.alive:
-                    enemy.get_hit(20, attacker=self)
-                    self.kill()
+        if self.collide(player):
+            if player.alive:
+                if self.flag_type == "Checkpoint_Flag_Idle1":
+                    player.last_checkpoint = (self.rect.x, self.rect.y - TILE_SIZE)
+                elif self.flag_type == "Pointer_Idle":
+                    player.reached_level_end = True
 
 
 class Pearl(pygame.sprite.Sprite):

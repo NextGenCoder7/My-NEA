@@ -5,7 +5,7 @@ from player import Player
 from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
-from objects import CollectibleGem, GrenadeBox, Hazard
+from objects import CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect
 from utils import load_level, load_tile_images
 
@@ -17,8 +17,9 @@ pygame.display.set_caption(TITLE)
 
 class World:
 
-    GEM_SPRITES = load_gem_and_hazard_sprite_sheets(16, 16, "gem")
-    HAZARD_SPRITES = load_gem_and_hazard_sprite_sheets(48, 50, "hazard")
+    GEM_SPRITES = load_collidable_objects_sprite_sheets(16, 16, "gem")
+    HAZARD_SPRITES = load_collidable_objects_sprite_sheets(48, 50, "hazard")
+    FLAG_SPRITES = load_collidable_objects_sprite_sheets(48, 50, "flag")
     GRENADE_SPRITES = load_ammo_sprites('Player')
     CANNON_BALL_SPRITES = load_ammo_sprites('Fierce Tooth')
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
@@ -33,6 +34,7 @@ class World:
         self.hazard_group = pygame.sprite.Group()
         self.constraint_rect_group = pygame.sprite.Group()
         self.grenade_box_group = pygame.sprite.Group()
+        self.checkpoint_group = pygame.sprite.Group()
 
         self.player_ammo_group = pygame.sprite.Group()
         self.player_grenade_group = pygame.sprite.Group()
@@ -59,47 +61,51 @@ class World:
                     img_rect = img.get_rect(topleft=(x * TILE_SIZE, y * TILE_SIZE))     
                     tile_data = (img, img_rect)
 
-                    if tile >= 0 and tile <= 14:
+                    if tile >= 0 and tile <= 14:   # obstacle tiles, the platforms
                         self.obstacle_list.append(tile_data)
-                    elif tile >= 15 and tile <= 16:
+                    elif tile >= 15 and tile <= 16:    # hazard tiles, saws and spikes
                         if tile == 15:
                             hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 5, self.HAZARD_SPRITES, tile)
                         else:
                             hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 20, self.HAZARD_SPRITES, tile)
                         self.hazard_group.add(hazard)
-                    elif tile == 17 or tile == 28:
-                        pass # literal flags
-                    elif tile == 18:
+                    elif tile == 17 or tile == 28:     # flag tiles, level end flag and checkpoint flags
+                        if tile == 17:
+                            self.level_end_flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 30, self.FLAG_SPRITES, tile)
+                        elif tile == 28:
+                            flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 30, self.FLAG_SPRITES, tile)
+                            self.checkpoint_group.add(flag)
+                    elif tile == 18:     # player tile
                         PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)                       
                         self.player = Player(x * TILE_SIZE, y * TILE_SIZE, 3, PLAYER_SPRITES, 15, 5, self.GEM_SPRITES, self.GRENADE_SPRITES)
-                    elif tile == 19:
+                    elif tile == 19:    # FierceTooth enemy tile
                         FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
                         self.fiercetooth_group.add(fiercetooth_enemy)               
                         print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
-                    elif tile == 20:
+                    elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
                         pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 500)
                         self.pink_star_group.add(pink_star_enemy)
-                    elif tile == 21:
+                    elif tile == 21:     # SeashellPearl enemy tile
                         SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
                         seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True)  
                         self.seashell_group.add(seashell_pearl_enemy)               
                         print(f"[WORLD] Spawn Seashell tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
-                    elif tile >= 22 and tile <= 24:
+                    elif tile >= 22 and tile <= 24:    # collectible gem tiles: player_ammo, player_health, coins
                         collectible_gem = CollectibleGem(x * TILE_SIZE, y * TILE_SIZE, self.GEM_SPRITES, tile)
                         self.collectible_gem_group.add(collectible_gem)
-                    elif tile == 25 or tile == 26 or tile == 29:
+                    elif tile == 25 or tile == 26 or tile == 29:    # constraint rect tiles: red, blue, orange (for enemies)
                         constraint_rect = ConstraintRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, tile)
                         self.constraint_rect_group.add(constraint_rect)
-                    elif tile == 27:
+                    elif tile == 27:     # grenade box tile
                         grenade_box_img = load_image('28', 'Level Editor Tiles')
                         grenade_box_img = pygame.transform.scale(grenade_box_img, (TILE_SIZE // 2, TILE_SIZE // 2))
                         grenade_box = GrenadeBox(x * TILE_SIZE, y * TILE_SIZE, grenade_box_img)
                         self.grenade_box_group.add(grenade_box)
 
-        return self.player, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
-        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.grenade_box_group, \
+        return self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
+        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.grenade_box_group, self.checkpoint_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
     def draw_world(self, bg1, scroll, win):
@@ -108,6 +114,11 @@ class World:
 
         for tile in self.obstacle_list:
             win.blit(tile[0], tile[1])
+
+        self.level_end_flag.draw(win)
+
+        for flag in self.checkpoint_group:
+            flag.draw(win)
 
         self.player.draw(win)
         self.player.draw_stamina_bar(win)
@@ -165,8 +176,8 @@ def main(win):
     world_data = load_level(0)
     tile_images = load_tile_images()
     world = World(tile_images)
-    player, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
-    collectible_gem_group, hazard_group, constraint_rect_group, grenade_box_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
+    player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
+    collectible_gem_group, hazard_group, constraint_rect_group, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
     # collectible_gem_group = pygame.sprite.Group()
     # grenade_box_group = pygame.sprite.Group()
@@ -306,6 +317,13 @@ def main(win):
         for hazard in hazard_group:
             hazard.update(player)
             hazard.update_sprite()
+
+        for flag in checkpoint_group:
+            flag.update(player)
+            flag.update_sprite()
+
+        level_end_flag.update(player)
+        level_end_flag.update_sprite()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

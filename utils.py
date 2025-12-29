@@ -5,6 +5,7 @@ import json
 from constants import *
 from os import listdir
 from os.path import isfile, join
+from random import randint
 
 
 def load_image(filename, dir1, dir2=None, dir3=None):
@@ -75,9 +76,10 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
     return all_sprites
 
 
-def load_gem_and_hazard_sprite_sheets(width, height, object_type):         # TODO, add choice for hazards (saw and spikes)
+def load_collidable_objects_sprite_sheets(width, height, object_type):         # TODO, add choice for hazards (saw and spikes)
     """
-    Loads gem sprite sheets from the assets folder and returns a dictionary of frames.
+    Loads gem, hazard and flag sprite sheets from the assets folder and returns dictionaries of frames.
+    Aside from the weapons and ammo these are the collidable objects for the player in the game.
 
     Args:
         width (int): Width of each frame in source sprite sheets.
@@ -91,6 +93,8 @@ def load_gem_and_hazard_sprite_sheets(width, height, object_type):         # TOD
         path = join("assets", "Objects", "Gems")
     elif object_type == "hazard":
         path = join("assets", "Traps")
+    elif object_type == "flag":
+        path = join("assets", "Objects", "Checkpoints")
 
     images = [f for f in listdir(path) if isfile(join(path, f))]
 
@@ -104,14 +108,21 @@ def load_gem_and_hazard_sprite_sheets(width, height, object_type):         # TOD
             surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
             surface.blit(sprite_sheet, (-i * width, 0))
 
+            scale_width = TILE_SIZE
             if object_type == "gem":
                 scale_width = TILE_SIZE // 1.5
             elif object_type == "hazard":
                 scale_width = TILE_SIZE * 1.7
-            scale_height = int((height / width) * scale_width)  
+            scale_height = int((height / width) * scale_width)
+            if object_type == "flag":
+                scale_height *= 2
+
             sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
 
-            all_sprites[image.replace(".png", "")] = sprites
+            if object_type == "hazard" and randint(0, 1) == 0:
+                all_sprites[image.replace(".png", "")] = flip(sprites)
+            else:
+                all_sprites[image.replace(".png", "")] = sprites
 
     return all_sprites
 

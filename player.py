@@ -99,6 +99,9 @@ class Player(pygame.sprite.Sprite):
         self.draw_num_ammo_timer = 0
         self.draw_num_grenades_timer = 0
         self.coin_count = 0
+        self.reached_level_end = False
+        self.current_level = 0
+        self.last_checkpoint = (x, y)
         self.is_player = True
 
     def handle_movement(self, keys, enemies_group=None):
