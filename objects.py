@@ -91,8 +91,6 @@ class CollectibleGem(pygame.sprite.Sprite):
         self.gem_type = "player_ammo"
         if tile_number == 22:
             self.gem_type = "coin"
-        elif tile_number == 23:
-            self.gem_type = "player_ammo"
         elif tile_number == 24:
             self.gem_type = "player_health"
         self.img = self.sprites[self.gem_type][0]
@@ -165,7 +163,88 @@ class CollectibleGem(pygame.sprite.Sprite):
                     player.coin_count += 1
 
 
-# Purple Gem class (moves horizontally across the screen as player ammo)
+class Hazard(pygame.sprite.Sprite):
+
+    ANIMATION_DELAY = 5
+
+    def __init__(self, x, y, sprites, tile_number):
+        """
+        Initialise a collidable Hazard.
+
+        Args:
+            x (float): X-coordinate of the hazard's position.
+            y (float): Y-coordinate of the hazard's position.
+            img (Surface): Pygame Surface used to draw the hazard.
+        """
+        super().__init__()
+
+        self.sprites = sprites
+        self.hazard_type = "saw"
+        if tile_number == 16:
+            self.hazard_type = "spikes"
+        self.img = self.sprites[self.hazard_type][0]
+        self.position = pygame.math.Vector2(x, y)
+        self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
+        self.mask = pygame.mask.from_surface(self.img)
+        self.animation_count = 0
+
+        self.is_hazard = True
+
+    def collide(self, obj):
+        """
+        Check collision between this hazard and another sprite using masks.
+
+        Args:
+            obj (Sprite): Other sprite to test collision against.
+
+        Returns:
+            bool: True if masks overlap, False otherwise.
+        """
+
+        if self.rect.colliderect(obj.rect):
+            offset_x = obj.rect.x - self.rect.x
+            offset_y = obj.rect.y - self.rect.y
+            return self.mask.overlap(obj.mask, (offset_x, offset_y)) is not None
+        else:
+            return False
+
+    def draw(self, win):
+        """
+        Draw the hazard on the provided surface.
+        """
+        win.blit(self.img, self.rect)
+
+    def update_sprite(self):
+        """
+        Update hazard sprite animation frame.
+        """
+        sprite_sheet_name = self.hazard_type
+        
+        if sprite_sheet_name in self.sprites:
+            sprites = self.sprites[sprite_sheet_name]
+            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+            self.img = sprites[sprite_index]
+
+        self.animation_count += 1
+
+    def update(self, player):
+        """
+        Update hazard position/mask and deals damage to the player if player collides with it. 
+
+        Args:
+            player (Player): Player object used to detect collision.
+        """
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        if self.collide(player):
+            if player.alive:
+                if self.hazard_type == "saw":
+                    player.get_hit(70, attacker=self)
+                elif self.hazard_type == "spikes":
+                    player.get_hit(50, attacker=self)
+
+
 class PurpleGem(CollectibleGem):
 
     def __init__(self, x, y, sprites, gem_type, direction):

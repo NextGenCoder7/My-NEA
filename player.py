@@ -246,7 +246,7 @@ class Player(pygame.sprite.Sprite):
         """
         if self.jump_count < 2:
             if self.jump_count == 0:
-                self.y_vel = -13
+                self.y_vel = -14
             else:
                 self.y_vel = -8
 
@@ -273,7 +273,7 @@ class Player(pygame.sprite.Sprite):
         self.health_bar_timer = self.HEALTH_BAR_DURATION
 
         if attacker and ((hasattr(attacker, 'is_enemy') and attacker.is_enemy) or \
-            (hasattr(attacker, 'is_grenade') and attacker.is_grenade)):
+            (hasattr(attacker, 'is_grenade') and attacker.is_grenade) or hasattr(attacker, 'is_hazard') and attacker.is_hazard):
             self.hit_anim_timer = self.HIT_ANIM_DURATION
 
     def check_alive(self):

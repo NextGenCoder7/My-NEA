@@ -5,7 +5,8 @@ from player import Player
 from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
-from objects import CollectibleGem, GrenadeBox
+from objects import CollectibleGem, GrenadeBox, Hazard
+from constraint_rects import ConstraintRect
 from utils import load_level, load_tile_images
 
 pygame.init()
@@ -16,7 +17,8 @@ pygame.display.set_caption(TITLE)
 
 class World:
 
-    GEM_SPRITES = load_gem_and_hazard_sprite_sheets(16, 16)
+    GEM_SPRITES = load_gem_and_hazard_sprite_sheets(16, 16, "gem")
+    HAZARD_SPRITES = load_gem_and_hazard_sprite_sheets(48, 50, "hazard")
     GRENADE_SPRITES = load_ammo_sprites('Player')
     CANNON_BALL_SPRITES = load_ammo_sprites('Fierce Tooth')
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
@@ -28,6 +30,7 @@ class World:
         self.pink_star_group = pygame.sprite.Group()
         self.seashell_group = pygame.sprite.Group()
         self.collectible_gem_group = pygame.sprite.Group()
+        self.hazard_group = pygame.sprite.Group()
         self.constraint_rect_group = pygame.sprite.Group()
         self.grenade_box_group = pygame.sprite.Group()
 
@@ -37,6 +40,18 @@ class World:
         self.pearl_group = pygame.sprite.Group()
 
     def process_data(self, data):
+        """
+        Process the level data to create game objects and populate the world.
+
+        Args:
+            data (list): 2D list representing the level layout.
+
+        Returns:
+            tuple: Contains the player object, various sprite groups, and sprite sheets.
+            pygame sprite groups: these are sprite groups for various types of objects.
+            sprite sheets: these are the loaded sprite sheets for gems, hazards, grenades, cannon balls, and pearls.
+        """
+
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
                 if tile >= 0:
@@ -47,7 +62,11 @@ class World:
                     if tile >= 0 and tile <= 14:
                         self.obstacle_list.append(tile_data)
                     elif tile >= 15 and tile <= 16:
-                        pass # hazards
+                        if tile == 15:
+                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 5, self.HAZARD_SPRITES, tile)
+                        else:
+                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 20, self.HAZARD_SPRITES, tile)
+                        self.hazard_group.add(hazard)
                     elif tile == 17 or tile == 28:
                         pass # literal flags
                     elif tile == 18:
@@ -80,7 +99,7 @@ class World:
                         self.grenade_box_group.add(grenade_box)
 
         return self.player, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
-        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.constraint_rect_group, self.grenade_box_group, \
+        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.grenade_box_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
     def draw_world(self, bg1, scroll, win):
@@ -96,8 +115,14 @@ class World:
         self.player.draw_ammo_count(win)
         self.player.draw_grenade_count(win)
 
+        for gem in self.collectible_gem_group:
+            gem.draw(win)
+
         for grenade_box in self.grenade_box_group:
             grenade_box.draw(win)
+
+        for hazard in self.hazard_group:
+            hazard.draw(win)
 
         for enemy in self.fiercetooth_group:
             enemy.draw(win)
@@ -141,15 +166,7 @@ def main(win):
     tile_images = load_tile_images()
     world = World(tile_images)
     player, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
-    collectible_gem_group, constraint_rect_group, grenade_box_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
-
-    print("FierceTooth count:", len(fiercetooth_group))
-    for i, e in enumerate(fiercetooth_group):
-        print(f" FT[{i}] pos:", e.position, "rect.topleft:", e.rect.topleft)
-
-    print("Seashell count:", len(seashell_group))
-    for i, s in enumerate(seashell_group):
-        print(f" Seashell[{i}] pos:", s.position, "rect.topleft:", s.rect.topleft)
+    collectible_gem_group, hazard_group, constraint_rect_group, grenade_box_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
     # collectible_gem_group = pygame.sprite.Group()
     # grenade_box_group = pygame.sprite.Group()
@@ -188,7 +205,7 @@ def main(win):
     # seashell_group.add(enemy2)
     # pink_star_group.add(enemy3)
 
-    enemies = list(fiercetooth_group) + list(seashell_group) 
+    enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group) 
 
     scroll_left = False
     scroll_right = False
@@ -281,6 +298,14 @@ def main(win):
 
         for grenade_box in grenade_box_group:
             grenade_box.update(player)
+
+        for gem in collectible_gem_group:
+            gem.update(player)
+            gem.update_sprite()
+
+        for hazard in hazard_group:
+            hazard.update(player)
+            hazard.update_sprite()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

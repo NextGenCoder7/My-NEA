@@ -139,7 +139,7 @@ class Enemy(pygame.sprite.Sprite):
         elif self.rect.right + self.velocity.x >= world_right:
             self.direction = "left"
             self.velocity.x = 0
-            self.position.x = WIDTH - self.rect.width
+            self.position.x = world_right - self.rect.width
     
     def jump(self):
         """
@@ -148,7 +148,7 @@ class Enemy(pygame.sprite.Sprite):
         This method supports a single jump only for the enemies, and increments the internal jump counter.
         """
         if self.jump_count < 1:
-            self.y_vel = -13
+            self.y_vel = -14
             self.jump_count += 1
 
     def get_hit(self, damage=20):

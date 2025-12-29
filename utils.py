@@ -62,7 +62,7 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
             surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
             surface.blit(sprite_sheet, (-i * width, 0))
             
-            scale_width = TILE_SIZE - 8
+            scale_width = TILE_SIZE - 5
             scale_height = int((height / width) * scale_width)  
             sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
 
@@ -75,7 +75,7 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
     return all_sprites
 
 
-def load_gem_and_hazard_sprite_sheets(width, height):         # TODO, add choice for hazards (saw and spikes)
+def load_gem_and_hazard_sprite_sheets(width, height, object_type):         # TODO, add choice for hazards (saw and spikes)
     """
     Loads gem sprite sheets from the assets folder and returns a dictionary of frames.
 
@@ -87,7 +87,11 @@ def load_gem_and_hazard_sprite_sheets(width, height):         # TODO, add choice
         dict: Mapping of sprite names to lists of scaled frames.
     """
 
-    path = join("assets", "Objects", "Gems")
+    if object_type == "gem":
+        path = join("assets", "Objects", "Gems")
+    elif object_type == "hazard":
+        path = join("assets", "Traps")
+
     images = [f for f in listdir(path) if isfile(join(path, f))]
 
     all_sprites = {}
@@ -100,7 +104,10 @@ def load_gem_and_hazard_sprite_sheets(width, height):         # TODO, add choice
             surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
             surface.blit(sprite_sheet, (-i * width, 0))
 
-            scale_width = TILE_SIZE // 2
+            if object_type == "gem":
+                scale_width = TILE_SIZE // 1.5
+            elif object_type == "hazard":
+                scale_width = TILE_SIZE * 1.7
             scale_height = int((height / width) * scale_width)  
             sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
 
@@ -237,7 +244,7 @@ def load_enemy_sprites(enemy_type, width, height):
                 sprites = []
                 for file in files:
                     sprite = pygame.image.load(join(animation_path, file)).convert_alpha()
-                    scale_width = TILE_SIZE - 8 if enemy_type != "Seashell Pearl" else TILE_SIZE
+                    scale_width = TILE_SIZE - 5 if enemy_type != "Seashell Pearl" else TILE_SIZE
                     scale_height = int((height / width) * scale_width)
                     sprite = pygame.transform.scale(sprite, (scale_width, scale_height))
                     sprites.append(sprite)
