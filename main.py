@@ -5,7 +5,7 @@ from player import Player
 from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
-from objects import CollectibleGem, GrenadeBox, Hazard, GameFlag
+from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect
 from utils import load_level, load_tile_images
 
@@ -25,8 +25,8 @@ class World:
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
 
     def __init__(self, img_list):
-        self.obstacle_list = []
         self.img_list = img_list
+        self.obstacle_group = pygame.sprite.Group()
         self.fiercetooth_group = pygame.sprite.Group()
         self.pink_star_group = pygame.sprite.Group()
         self.seashell_group = pygame.sprite.Group()
@@ -59,10 +59,10 @@ class World:
                 if tile >= 0:
                     img = self.img_list[tile]
                     img_rect = img.get_rect(topleft=(x * TILE_SIZE, y * TILE_SIZE))     
-                    tile_data = (img, img_rect)
 
                     if tile >= 0 and tile <= 14:   # obstacle tiles, the platforms
-                        self.obstacle_list.append(tile_data)
+                        obstacle_tile = Obstacle(img, img_rect)
+                        self.obstacle_group.add(obstacle_tile)
                     elif tile >= 15 and tile <= 16:    # hazard tiles, saws and spikes
                         if tile == 15:
                             hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 5, self.HAZARD_SPRITES, tile)
@@ -104,7 +104,7 @@ class World:
                         grenade_box = GrenadeBox(x * TILE_SIZE, y * TILE_SIZE, grenade_box_img)
                         self.grenade_box_group.add(grenade_box)
 
-        return self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
+        return self.obstacle_group, self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
         self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.grenade_box_group, self.checkpoint_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
@@ -112,8 +112,8 @@ class World:
         draw_bg(bg1, win, scroll)
         pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor
 
-        for tile in self.obstacle_list:
-            win.blit(tile[0], tile[1])
+        for tile in self.obstacle_group:
+            tile.draw(win)
 
         self.level_end_flag.draw(win)
 
@@ -176,7 +176,7 @@ def main(win):
     world_data = load_level(0)
     tile_images = load_tile_images()
     world = World(tile_images)
-    player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
+    obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
     collectible_gem_group, hazard_group, constraint_rect_group, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
     # collectible_gem_group = pygame.sprite.Group()
@@ -276,8 +276,7 @@ def main(win):
         
         if player.alive:
             player.update()
-            player.handle_movement(keys, enemies)
-            # player.handle_movement(keys, pink_star_group)      
+            player.handle_movement(keys, obstacle_list, enemies)      
             player.update_sprite()
 
             if player.shoot:
@@ -290,13 +289,14 @@ def main(win):
         else:
             player.handle_death(HEIGHT)
 
+        for tile in obstacle_list:
+            tile.update()
+
         for ammo in player_ammo_group:
             ammo.update(enemies)   
-            # ammo.update(pink_star_group)
 
         for grenade in player_grenade_group:
             grenade.update(player, enemies)
-            # grenade.update(player, pink_star_group)
             grenade.update_sprite()
 
         for cannon_ball in cannon_ball_group:

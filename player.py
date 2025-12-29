@@ -104,7 +104,7 @@ class Player(pygame.sprite.Sprite):
         self.last_checkpoint = (x, y)
         self.is_player = True
 
-    def handle_movement(self, keys, enemies_group=None):
+    def handle_movement(self, keys, obstacle_list, enemies_group=None):
         """
         Handles the player movement based on keyboard input and collision with enemies.
 
@@ -147,12 +147,14 @@ class Player(pygame.sprite.Sprite):
         else:
             self.speed = self.base_speed
             self.is_sprinting = False
-
+        
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
             self.y_vel = 10
 
         dy = self.y_vel
+        
+        # so instead of collidding with this temporary line, now collide with obstacle_list (the platforms)
         if self.rect.bottom + dy > 400:
             dy = 400 - self.rect.bottom
             self.jump_count = 0
@@ -291,7 +293,7 @@ class Player(pygame.sprite.Sprite):
 
     def collide(self, obj):
         """
-        Checks for a collision between the player and another object.
+        Checks for a collision between the player and another object, more accurately than just using rects.
 
         Args:
             obj (Sprite): The object to check for collision with.

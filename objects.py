@@ -4,6 +4,23 @@ import math
 from random import randint
 
 
+class Obstacle(pygame.sprite.Sprite):
+
+    def __init__(self, img, img_rect):
+        super().__init__()
+        
+        self.img = img
+        self.rect = img_rect
+        self.mask = pygame.mask.from_surface(self.img)
+
+    def draw(self, win):
+        win.blit(self.img, self.rect)
+
+    def update(self):
+        self.rect = self.img.get_rect(topleft=(int(self.rect.x), int(self.rect.y)))
+        self.mask = pygame.mask.from_surface(self.img)
+
+
 class GrenadeBox(pygame.sprite.Sprite):
     """
     A box that contains grenades for the player to collect.
