@@ -81,6 +81,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
         self.mask = pygame.mask.from_surface(self.img)
         self.alive = True
+        self.on_ground = False
         self.jump_count = 0
         self.shoot = False
         self.shoot_cooldown = 0
@@ -148,21 +149,37 @@ class Player(pygame.sprite.Sprite):
             self.speed = self.base_speed
             self.is_sprinting = False
         
+        # so instead of collidding with the temporary line, now collide with obstacle_list (the platforms)
+        # but because of lines 154-156, the player is cinstantly jittering and stuck on falling animation
+        # I obviously cannot remove this because when the player jumps or walks off a platform, the player needs to fall
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
             self.y_vel = 10
 
         dy = self.y_vel
         
-        # so instead of collidding with this temporary line, now collide with obstacle_list (the platforms)
-        if self.rect.bottom + dy > 400:
-            dy = 400 - self.rect.bottom
-            self.jump_count = 0
-            self.y_vel = 0
+        # temporary line 
+        # if self.rect.bottom + dy > 400:
+        #     dy = 400 - self.rect.bottom
+        #     self.jump_count = 0
+        #     self.y_vel = 0
 
         self.position.y += dy
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.rect):
+                if dy > 0:  
+                    self.rect.bottom = tile.rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+                    self.jump_count = 0
+                    self.on_ground = True
+                elif dy < 0:  
+                    self.rect.top = tile.rect.bottom
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
 
         if enemies_group:
             for enemy in enemies_group:
@@ -191,6 +208,14 @@ class Player(pygame.sprite.Sprite):
         self.position.x += self.velocity.x
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.rect):
+                if self.velocity.x > 0:  
+                    self.rect.right = tile.rect.left
+                elif self.velocity.x < 0:  
+                    self.rect.left = tile.rect.right
+                self.position.x = self.rect.x
 
         if enemies_group:
             for enemy in enemies_group:
@@ -485,7 +510,7 @@ class Player(pygame.sprite.Sprite):
                     sprite_sheet = "Jump"
                 elif self.jump_count == 2:
                     sprite_sheet = "Double_Jump"
-            elif self.y_vel > 0:
+            elif self.y_vel > 0 and not self.on_ground:
                 sprite_sheet = "Fall"
             elif self.moving_left or self.moving_right:
                 sprite_sheet = "Run"
