@@ -7,6 +7,7 @@ ROWS = 16
 MAX_COLS = 180
 
 TILE_SIZE = HEIGHT // ROWS
+OBSTACLE_SIDE_PADDING = TILE_SIZE * 0.125
 TILE_TYPES = 30
 
 TILE_BTN_SPACING_X = 75
@@ -15,6 +16,24 @@ TILE_BTN_OFFSET_X = 50
 TILE_BTN_OFFSET_Y = 20
 
 SCROLL_AREA_WIDTH = 200
+
+OBSTACLE_TILE_COLLISIONS = {
+    0: {"x": OBSTACLE_SIDE_PADDING, "y": 5, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": (TILE_SIZE - 5)},   # done
+    1: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},     # done
+    2: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    3: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    4: {"x": 5 + OBSTACLE_SIDE_PADDING, "y": 0, "w": 15 - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},       # done
+    5: {"x": 20 + OBSTACLE_SIDE_PADDING, "y": 0, "w": 15 - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},     # done
+    6: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    7: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},   # done
+    8: {"x": 15 + OBSTACLE_SIDE_PADDING, "y": 0, "w": (TILE_SIZE - 15) - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},   # done
+    9: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": (TILE_SIZE - 10) - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    10: {"x": 18 + OBSTACLE_SIDE_PADDING, "y": 0, "w": (TILE_SIZE - 18) - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    11: {"x": 5 + OBSTACLE_SIDE_PADDING, "y": 0, "w": (TILE_SIZE - 18) - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    12: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    13: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE},    # done
+    14: {"x": OBSTACLE_SIDE_PADDING, "y": 0, "w": TILE_SIZE - (OBSTACLE_SIDE_PADDING * 2), "h": TILE_SIZE}    # done
+}
 
 FPS = 60
 

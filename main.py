@@ -58,11 +58,19 @@ class World:
             for x, tile in enumerate(row):
                 if tile >= 0:
                     img = self.img_list[tile]
-                    img_rect = img.get_rect(topleft=(x * TILE_SIZE, y * TILE_SIZE))     
+                    img_rect = img.get_rect(topleft=(x * TILE_SIZE, y * TILE_SIZE))    
 
                     if tile >= 0 and tile <= 14:   # obstacle tiles, the platforms
-                        obstacle_tile = Obstacle(img, img_rect)
-                        self.obstacle_group.add(obstacle_tile)
+                        if tile in OBSTACLE_TILE_COLLISIONS:
+                            collision_data = OBSTACLE_TILE_COLLISIONS[tile]
+                            collision_rect = pygame.Rect(
+                                img_rect.x + collision_data["x"],
+                                img_rect.y + collision_data["y"],
+                                collision_data["w"],
+                                collision_data["h"]
+                            )
+                            obstacle = Obstacle(img, img_rect, collision_rect)
+                            self.obstacle_group.add(obstacle)
                     elif tile >= 15 and tile <= 16:    # hazard tiles, saws and spikes
                         if tile == 15:
                             hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 5, self.HAZARD_SPRITES, tile)
@@ -114,8 +122,6 @@ class World:
 
         for tile in self.obstacle_group:
             tile.draw(win)
-
-        self.level_end_flag.draw(win)
 
         for flag in self.checkpoint_group:
             flag.draw(win)

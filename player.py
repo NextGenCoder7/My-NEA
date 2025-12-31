@@ -149,9 +149,6 @@ class Player(pygame.sprite.Sprite):
             self.speed = self.base_speed
             self.is_sprinting = False
         
-        # so instead of collidding with the temporary line, now collide with obstacle_list (the platforms)
-        # but because of lines 154-156, the player is cinstantly jittering and stuck on falling animation
-        # I obviously cannot remove this because when the player jumps or walks off a platform, the player needs to fall
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
             self.y_vel = 10
@@ -169,15 +166,15 @@ class Player(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.img)
 
         for tile in obstacle_list:
-            if self.rect.colliderect(tile.rect):
+            if self.rect.colliderect(tile.collide_rect):         
                 if dy > 0:  
-                    self.rect.bottom = tile.rect.top
+                    self.rect.bottom = tile.collide_rect.top
                     self.position.y = self.rect.y
                     self.y_vel = 0
                     self.jump_count = 0
                     self.on_ground = True
                 elif dy < 0:  
-                    self.rect.top = tile.rect.bottom
+                    self.rect.top = tile.collide_rect.bottom
                     self.position.y = self.rect.y
                     self.y_vel = 0
 
@@ -210,11 +207,11 @@ class Player(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.img)
 
         for tile in obstacle_list:
-            if self.rect.colliderect(tile.rect):
+            if self.rect.colliderect(tile.collide_rect):
                 if self.velocity.x > 0:  
-                    self.rect.right = tile.rect.left
+                    self.rect.right = tile.collide_rect.left
                 elif self.velocity.x < 0:  
-                    self.rect.left = tile.rect.right
+                    self.rect.left = tile.collide_rect.right
                 self.position.x = self.rect.x
 
         if enemies_group:
