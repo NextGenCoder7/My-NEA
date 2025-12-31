@@ -247,7 +247,7 @@ def main(win):
         for enemy in fiercetooth_group:  
             if enemy.alive:
                 enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group)
-                enemy.handle_movement()           
+                enemy.handle_movement(obstacle_list)           
                 enemy.update_sprite(player)
 
                 if hasattr(enemy, 'smartmode') and enemy.smartmode:
@@ -264,7 +264,7 @@ def main(win):
         for enemy in seashell_group:
             if enemy.alive:
                 enemy.update(player, PEARL_SPRITES, pearl_group)  
-                enemy.handle_movement()
+                enemy.handle_movement(obstacle_list)
                 enemy.update_sprite(player)
 
                 if hasattr(enemy, 'smartmode') and enemy.smartmode:
@@ -277,7 +277,7 @@ def main(win):
         # for enemy in pink_star_group:
         #     if enemy.alive:
         #         enemy.update(player)   
-        #         enemy.handle_movement()
+        #         enemy.handle_movement(obstacle_list)
         #         enemy.update_sprite(player)
         
         if player.alive:
@@ -302,7 +302,7 @@ def main(win):
             ammo.update(enemies)   
 
         for grenade in player_grenade_group:
-            grenade.update(player, enemies)
+            grenade.update(player, enemies, obstacle_list)
             grenade.update_sprite()
 
         for cannon_ball in cannon_ball_group:

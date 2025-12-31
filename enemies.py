@@ -67,6 +67,7 @@ class Enemy(pygame.sprite.Sprite):
         self.position = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
         self.speed = x_vel
+        self.on_ground = False
         self.y_vel = 0
         self.alive = True
         self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
@@ -88,12 +89,11 @@ class Enemy(pygame.sprite.Sprite):
 
         self.is_enemy = True
         
-    def handle_movement(self):
+    def handle_movement(self, obstacle_list):
         """
         Handles AI movement logic (general default movement for all enemies).
         """
         self.velocity.x = 0
-        self.velocity.y = 0
         self.moving_left = False
         self.moving_right = False
         
@@ -121,14 +121,38 @@ class Enemy(pygame.sprite.Sprite):
         if self.y_vel > 10:
             self.y_vel = 10
         
-        self.velocity.y += self.y_vel
+        dy = self.y_vel
+
+        self.position.y += dy
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):         
+                if dy > 0:  
+                    self.rect.bottom = tile.collide_rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+                    self.jump_count = 0
+                    self.on_ground = True
+                elif dy < 0:  
+                    self.rect.top = tile.collide_rect.bottom
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
         
-        if self.rect.bottom + self.velocity.y > 400:
-            self.velocity.y = 400 - self.rect.bottom
-            self.jump_count = 0
-            self.y_vel = 0
-        
-        self.position += self.velocity
+        self.position.x += self.velocity.x
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):
+                if self.velocity.x > 0:  
+                    self.direction = "left"
+                    self.rect.right = tile.collide_rect.left
+                elif self.velocity.x < 0:  
+                    self.direction = "right"
+                    self.rect.left = tile.collide_rect.right
+                self.position.x = self.rect.x
 
         world_right = MAX_COLS * TILE_SIZE
 
@@ -136,7 +160,7 @@ class Enemy(pygame.sprite.Sprite):
             self.direction = "right"
             self.velocity.x = 0
             self.position.x = 0
-        elif self.rect.right + self.velocity.x >= world_right:
+        elif self.rect.right + self.velocity.x > world_right:
             self.direction = "left"
             self.velocity.x = 0
             self.position.x = world_right - self.rect.width
@@ -223,7 +247,7 @@ class Enemy(pygame.sprite.Sprite):
 
             if self.y_vel < 0:
                 sprite_sheet = "Jump"
-            elif self.y_vel > 0:
+            elif self.y_vel > 0 and not self.on_ground:
                 sprite_sheet = "Fall"
             elif self.moving_left or self.moving_right:
                 sprite_sheet = "Run"

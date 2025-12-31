@@ -310,7 +310,7 @@ class FierceTooth(Enemy):
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
-                    elif self.y_vel > 0:
+                    elif self.y_vel > 0 and not self.on_ground:
                         sprite_sheet = "Fall"
                     elif self.moving_left or self.moving_right:
                         sprite_sheet = "Run"
@@ -321,7 +321,7 @@ class FierceTooth(Enemy):
                     sprite_sheet = "Hit"
                 elif self.y_vel < 0:
                     sprite_sheet = "Jump"
-                elif self.y_vel > 0:
+                elif self.y_vel > 0 and not self.on_ground:
                     sprite_sheet = "Fall"
                 elif self.moving_left or self.moving_right:
                     sprite_sheet = "Run"

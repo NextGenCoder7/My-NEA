@@ -685,7 +685,6 @@ class Grenade(pygame.sprite.Sprite):
     """
 
     GRAVITY = 0.7
-    GROUND_Y = 400
     BOUNCE_DAMPING_Y = 0.35
     MIN_BOUNCE_VY = 1.2
     AIR_DRAG = 0.995
@@ -774,7 +773,9 @@ class Grenade(pygame.sprite.Sprite):
         self.blast_timer = int(self.BLAST_DURATION)
 
     def update_sprite(self):
-        """Advance animation; for blast state play frames then hold last frame while blast_timer counts down."""
+        """
+        Advance animation; for blast state play frames then hold last frame while blast_timer counts down.
+        """
         if self.state == "thrown":
             sheet = "Grenade Idle"
         else:
@@ -804,7 +805,7 @@ class Grenade(pygame.sprite.Sprite):
 
         self.animation_count += 1
 
-    def update(self, player, enemies_group):
+    def update(self, player, enemies_group, obstacle_list):
         """
         Update grenade every frame.
         - While thrown: integrate physics and count down timer.
@@ -821,37 +822,42 @@ class Grenade(pygame.sprite.Sprite):
             self.rotation_angle -= self.velocity.x * self.SPIN_FACTOR
             self.rotation_angle %= 360
 
-            airborne = (self.position.y + self.rect.height) < self.GROUND_Y
+            airborne = (self.position.y + self.rect.height) < self.GROUND_Y   
 
-            if airborne:
+            if self.airborne:
                 self.velocity.y += self.GRAVITY
                 self.velocity.x *= self.AIR_DRAG
 
             self.position += self.velocity
 
-            if self.position.y + self.rect.height >= self.GROUND_Y:
-                self.position.y = self.GROUND_Y - self.rect.height
+            for tile in obstacle_list:
+                if self.rect.colliderect(tile.collide_rect):                   
+                    if self.velocity.y > 0:
+                        self.rect.bottom = tile.collide_rect.top
+                        self.position.y = self.rect.y
 
-                if abs(self.velocity.y) > self.MIN_BOUNCE_VY:
-                    self.velocity.y = -self.velocity.y * self.BOUNCE_DAMPING_Y
-                else:
-                    self.velocity.y = 0
+                        if abs(self.velocity.y) > self.MIN_BOUNCE_VY:
+                            self.velocity.y = -self.velocity.y * self.BOUNCE_DAMPING_Y
+                        else:
+                            self.velocity.y = 0
 
-                if self.velocity.x > 0:
-                    self.velocity.x -= self._roll_decel
-                    if self.velocity.x < self._roll_stop_threshold:
-                        self.velocity.x = 0
-                elif self.velocity.x < 0:
-                    self.velocity.x += self._roll_decel
-                    if self.velocity.x > -self._roll_stop_threshold:
-                        self.velocity.x = 0
+                        if self.velocity.x > 0:
+                            self.velocity.x -= self._roll_decel
+                            if self.velocity.x < self._roll_stop_threshold:
+                                self.velocity.x = 0
+                        elif self.velocity.x < 0:
+                            self.velocity.x += self._roll_decel
+                            if self.velocity.x > -self._roll_stop_threshold:
+                                self.velocity.x = 0
+                    elif self.velocity.y < 0:
+                        self.velocity.y *= -1
 
             self.rect.topleft = (round(self.position.x), round(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
 
         elif self.state == "blast":
             if not self._blast_applied:
-                max_damage_distance = math.hypot(self.rect.width // 2, self.rect.height // 2) + 15
+                max_damage_distance = math.hypot(self.rect.width // 2, self.rect.height // 2) + 17
 
                 for enemy in enemies_group:
                     if not enemy.alive:

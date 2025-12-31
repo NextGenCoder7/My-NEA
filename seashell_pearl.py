@@ -71,19 +71,25 @@ class SeashellPearl(Enemy):
 
         self.enemy_type = "Seashell Pearl"
 
-    def handle_movement(self):
+    def handle_movement(self, obstacle_list):
         self.velocity.y = 0
 
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
             self.y_vel = 10
         
-        self.velocity.y += self.y_vel
-        
-        if self.rect.bottom + self.velocity.y > 400:
-            self.velocity.y = 400 - self.rect.bottom
-            self.jump_count = 0
-            self.y_vel = 0
+        dy = self.y_vel
+
+        self.position.y += dy
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):         
+                if dy > 0:  
+                    self.rect.bottom = tile.collide_rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
         
         self.position += self.velocity
 
@@ -93,10 +99,10 @@ class SeashellPearl(Enemy):
             self.direction = "right"
             self.velocity.x = 0
             self.position.x = 0
-        elif self.rect.right + self.velocity.x >= world_right:
+        elif self.rect.right + self.velocity.x > world_right:
             self.direction = "left"
             self.velocity.x = 0
-            self.position.x = WIDTH - self.rect.width
+            self.position.x = world_right - self.rect.width
 
     def check_vision_cone(self, player):
         """
