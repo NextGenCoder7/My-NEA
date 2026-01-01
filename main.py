@@ -6,7 +6,7 @@ from fiercetooth import FierceTooth
 from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
 from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
-from constraint_rects import ConstraintRect
+from constraint_rects import ConstraintRect, compute_danger_zones
 from utils import load_level, load_tile_images
 
 pygame.init()
@@ -112,8 +112,10 @@ class World:
                         grenade_box = GrenadeBox(x * TILE_SIZE, y * TILE_SIZE, grenade_box_img)
                         self.grenade_box_group.add(grenade_box)
 
+        self.danger_zones = compute_danger_zones(self.constraint_rect_group)
+
         return self.obstacle_group, self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
-        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.grenade_box_group, self.checkpoint_group, \
+        self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.danger_zones, self.grenade_box_group, self.checkpoint_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
     def draw_world(self, bg1, scroll, win):
@@ -122,6 +124,10 @@ class World:
 
         for tile in self.obstacle_group:
             tile.draw(win)
+
+        # for testing purposes
+        for rect in self.constraint_rect_group:
+            rect.draw(win)
 
         for flag in self.checkpoint_group:
             flag.draw(win)
@@ -183,7 +189,7 @@ def main(win):
     tile_images = load_tile_images()
     world = World(tile_images)
     obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
-    collectible_gem_group, hazard_group, constraint_rect_group, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
+    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
     # collectible_gem_group = pygame.sprite.Group()
     # grenade_box_group = pygame.sprite.Group()
@@ -247,7 +253,7 @@ def main(win):
         for enemy in fiercetooth_group:  
             if enemy.alive:
                 enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group)
-                enemy.handle_movement(obstacle_list)           
+                enemy.handle_movement(obstacle_list, constraint_rect_group)           
                 enemy.update_sprite(player)
 
                 if hasattr(enemy, 'smartmode') and enemy.smartmode:
@@ -277,7 +283,7 @@ def main(win):
         # for enemy in pink_star_group:
         #     if enemy.alive:
         #         enemy.update(player)   
-        #         enemy.handle_movement(obstacle_list)
+        #         enemy.handle_movement(obstacle_list, constraint_rect_group)
         #         enemy.update_sprite(player)
         
         if player.alive:
@@ -287,6 +293,12 @@ def main(win):
 
             if player.shoot:
                 player.shoot_ammo(GEM_SPRITES, player_ammo_group)
+
+            for zone_rect, validated in danger_zones:
+                if validated and zone_rect.colliderect(player.rect):
+                    player.in_danger_zone = True
+                else:
+                    player.in_danger_zone = False
 
             if scroll_left and scroll > 0:
                 scroll -= 5 * scroll_speed

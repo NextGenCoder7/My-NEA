@@ -103,6 +103,7 @@ class Player(pygame.sprite.Sprite):
         self.reached_level_end = False
         self.current_level = 0
         self.last_checkpoint = (x, y)
+        self.in_danger_zone = False
         self.is_player = True
 
     def handle_movement(self, keys, obstacle_list, enemies_group=None):

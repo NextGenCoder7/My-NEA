@@ -88,8 +88,9 @@ class Enemy(pygame.sprite.Sprite):
         self.moving_right = False
 
         self.is_enemy = True
+        self.enemy_type = ""
         
-    def handle_movement(self, obstacle_list):
+    def handle_movement(self, obstacle_list, constraint_rect_group):
         """
         Handles AI movement logic (general default movement for all enemies).
         """
@@ -152,7 +153,21 @@ class Enemy(pygame.sprite.Sprite):
                 elif self.velocity.x < 0:  
                     self.direction = "right"
                     self.rect.left = tile.collide_rect.right
+
                 self.position.x = self.rect.x
+
+        if self.enemy_type == "Fiercetooth":
+            for constraint in constraint_rect_group:
+                if constraint.color == RED:
+                    if self.rect.colliderect(constraint.rect):
+                        if self.velocity.x > 0:  
+                            self.direction = "left"
+                            self.rect.right = constraint.rect.left
+                        elif self.velocity.x < 0:
+                            self.direction = "right"
+                            self.rect.left = constraint.rect.right
+
+                        self.position.x = self.rect.x
 
         world_right = MAX_COLS * TILE_SIZE
 

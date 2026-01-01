@@ -824,6 +824,9 @@ class Grenade(pygame.sprite.Sprite):
             self.rotation_angle %= 360
 
             self.velocity.y += self.GRAVITY
+            if self.velocity.y > 10:
+                self.velocity.y = 10
+
             self.velocity.x *= self.AIR_DRAG
 
             self.position.y += self.velocity.y

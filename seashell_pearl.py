@@ -378,8 +378,15 @@ class SeashellPearl(Enemy):
 
         if self.hit_anim_timer > 0:    
             self.bite_cooldown = 60
-
-        if self.smartmode and player and self.recently_lost_vision_timer > 0:
+            if self.smartmode and player and self.recently_lost_vision_timer > 0:
+                dx = player.rect.centerx - self.rect.centerx
+                player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                if player_is_behind and self.turn_cooldown == 0:
+                    self.direction = "left" if self.direction == "right" else "right"
+                    self.recently_lost_vision_timer = 0
+                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION    
+                    self.turn_cooldown = self.TURN_COOLDOWN
+        elif self.smartmode and player and self.recently_lost_vision_timer > 0:
             dx = player.rect.centerx - self.rect.centerx
             player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
             if player_is_behind and self.turn_cooldown == 0:

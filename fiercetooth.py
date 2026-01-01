@@ -104,7 +104,7 @@ class FierceTooth(Enemy):
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         
-    def check_vision_cone(self, player):
+    def check_vision_cone(self, player, obstacle_list):
         """
         Determine whether the player is within the enemy's vision cone.
 
@@ -127,10 +127,10 @@ class FierceTooth(Enemy):
         dy = player.rect.centery - self.rect.centery
         distance = math.hypot(dx, dy)
 
-        if (self.y_vel == 0 or self.y_vel == 10) and player.rect.bottom > self.rect.bottom:
-            self.player_in_vision = False
-            self.attacking = False
-            return False
+        # if (self.y_vel == 0 or self.y_vel == 10) and player.rect.bottom > self.rect.bottom:
+        #     self.player_in_vision = False
+        #     self.attacking = False
+        #     return False
 
         if distance > self.vision_range:
             self.player_in_vision = False
@@ -390,7 +390,7 @@ class FierceTooth(Enemy):
         ammo_ball.velocity = ammo_direction * ammo_ball.speed
         ammo_group.add(ammo_ball)
 
-    def update(self, player, ammo_sprites, ammo_group):
+    def update(self, player, ammo_sprites, ammo_group, obstacle_list, constraint_rect_group):
         """
         Update enemy state for this frame, including vision checks, cooldowns, collisions,
         and smart-mode reactions to the player leaving the vision cone.
