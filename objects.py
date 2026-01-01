@@ -684,6 +684,7 @@ class Grenade(pygame.sprite.Sprite):
         is_grenade (bool): Proving that this object is a Grenade.
     """
 
+    GROUND_Y = 400
     GRAVITY = 0.7
     BOUNCE_DAMPING_Y = 0.35
     MIN_BOUNCE_VY = 1.2
@@ -822,16 +823,15 @@ class Grenade(pygame.sprite.Sprite):
             self.rotation_angle -= self.velocity.x * self.SPIN_FACTOR
             self.rotation_angle %= 360
 
-            airborne = (self.position.y + self.rect.height) < self.GROUND_Y   
+            self.velocity.y += self.GRAVITY
+            self.velocity.x *= self.AIR_DRAG
 
-            if self.airborne:
-                self.velocity.y += self.GRAVITY
-                self.velocity.x *= self.AIR_DRAG
-
-            self.position += self.velocity
+            self.position.y += self.velocity.y
+            self.rect.topleft = (round(self.position.x), round(self.position.y))
+            self.mask = pygame.mask.from_surface(self.img)
 
             for tile in obstacle_list:
-                if self.rect.colliderect(tile.collide_rect):                   
+                if self.rect.colliderect(tile.collide_rect):
                     if self.velocity.y > 0:
                         self.rect.bottom = tile.collide_rect.top
                         self.position.y = self.rect.y
@@ -849,8 +849,28 @@ class Grenade(pygame.sprite.Sprite):
                             self.velocity.x += self._roll_decel
                             if self.velocity.x > -self._roll_stop_threshold:
                                 self.velocity.x = 0
+
                     elif self.velocity.y < 0:
+                        self.rect.top = tile.collide_rect.bottom
+                        self.position.y = self.rect.y
                         self.velocity.y *= -1
+
+                    break
+
+            self.position.x += self.velocity.x
+            self.rect.topleft = (round(self.position.x), round(self.position.y))
+            self.mask = pygame.mask.from_surface(self.img)
+
+            for tile in obstacle_list:
+                if self.rect.colliderect(tile.collide_rect):
+                    if self.velocity.x > 0:
+                        self.rect.right = tile.collide_rect.left
+                    elif self.velocity.x < 0:
+                        self.rect.left = tile.collide_rect.right
+
+                    self.position.x = self.rect.x
+                    self.velocity.x *= -1
+                    break
 
             self.rect.topleft = (round(self.position.x), round(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)

@@ -85,7 +85,7 @@ class World:
                             self.checkpoint_group.add(flag)
                     elif tile == 18:     # player tile
                         PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)                       
-                        self.player = Player(x * TILE_SIZE, y * TILE_SIZE, 3, PLAYER_SPRITES, 15, 5, self.GEM_SPRITES, self.GRENADE_SPRITES)
+                        self.player = Player(x * TILE_SIZE, y * TILE_SIZE, 3, PLAYER_SPRITES, 15, 50, self.GEM_SPRITES, self.GRENADE_SPRITES)
                     elif tile == 19:    # FierceTooth enemy tile
                         FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
