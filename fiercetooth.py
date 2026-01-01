@@ -103,8 +103,50 @@ class FierceTooth(Enemy):
 
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
+
+    def _blocked_by_obstacle(self, start_pos, end_pos, obstacle_list, constraint_rect_group):
+        if not obstacle_list and not constraint_rect_group:
+            return False
+
+        sx, sy = start_pos
+        ex, ey = end_pos
+        dist_to_end = math.hypot(ex - sx, ey - sy)
+
+        def _normalise_clip(clip):
+            if isinstance(clip[0], tuple):
+                (ix1, iy1), (ix2, iy2) = clip
+            else:
+                ix1, iy1, ix2, iy2 = clip
+            return ix1, iy1, ix2, iy2
+
+        if obstacle_list:
+            for tile in obstacle_list:
+                clip = tile.collide_rect.clipline((sx, sy), (ex, ey))
+                if clip:
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    d = min(d1, d2)
+                    if d < dist_to_end - 1e-6:
+                        return True
+
+        if constraint_rect_group:
+            for constraint in constraint_rect_group:
+                if constraint.colour != RED:
+                    continue
+
+                clip = constraint.rect.clipline((sx, sy), (ex, ey))
+                if clip:
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    d = min(d1, d2)
+                    if d < dist_to_end - 1e-6:
+                        return True
+
+        return False
         
-    def check_vision_cone(self, player, obstacle_list):
+    def check_vision_cone(self, player, obstacle_list, constraint_rect_group):
         """
         Determine whether the player is within the enemy's vision cone.
 
@@ -114,6 +156,8 @@ class FierceTooth(Enemy):
 
         Args:
             player (Player): Player object whose position is tested.
+            obstacle_list (Group): A list of obstacle rects for vision blocking checks.
+            constraint_rect_group (Group): The constraint rects which are used to block enemy movement and vision.
 
         Returns:
             str|bool: "attack", "shoot", or False.
@@ -127,63 +171,45 @@ class FierceTooth(Enemy):
         dy = player.rect.centery - self.rect.centery
         distance = math.hypot(dx, dy)
 
-        # if (self.y_vel == 0 or self.y_vel == 10) and player.rect.bottom > self.rect.bottom:
-        #     self.player_in_vision = False
-        #     self.attacking = False
-        #     return False
-
         if distance > self.vision_range:
             self.player_in_vision = False
             self.attacking = False
             return False
 
+        angle_to_player = math.degrees(math.atan2(dy, dx))
+        if angle_to_player < 0:
+            angle_to_player += 360
+
+        if self.direction == "right":
+            left_bound = 360 - (self.vision_angle / 2)
+            right_bound = self.vision_angle / 2
+            in_vision = (angle_to_player >= left_bound or angle_to_player <= right_bound)
+        else:
+            left_bound = 180 - (self.vision_angle / 2)
+            right_bound = 180 + (self.vision_angle / 2)
+            in_vision = (left_bound <= angle_to_player <= right_bound)
+
+        if not in_vision:
+            self.attacking = False
+            self.player_in_vision = False
+            return False
+
+        if obstacle_list or constraint_rect_group:
+            start = (self.rect.centerx, self.rect.centery)
+            end = (player.rect.centerx, player.rect.centery)
+            if self._blocked_by_obstacle(start, end, obstacle_list, constraint_rect_group):
+                self.player_in_vision = False
+                self.attacking = False            
+                return False
+
         if distance <= self.attack_range:
-            angle_to_player = math.degrees(math.atan2(dy, dx))
-            if angle_to_player < 0:
-                angle_to_player += 360
-
-            if self.direction == "right":
-                left_bound = 360 - (self.vision_angle / 2)
-                right_bound = self.vision_angle / 2
-                in_vision = (angle_to_player >= left_bound or angle_to_player <= right_bound)
-            else:
-                left_bound = 180 - (self.vision_angle / 2)
-                right_bound = 180 + (self.vision_angle / 2)
-                in_vision = (left_bound <= angle_to_player <= right_bound)
-
-            if in_vision:
-                self.attacking = True
-                self.player_in_vision = True
-                return "attack"
-            else:
-                self.attacking = False
-                self.player_in_vision = False
-                return False
-
-        elif distance <= self.vision_range:
-            angle_to_player = math.degrees(math.atan2(dy, dx))
-            if angle_to_player < 0:
-                angle_to_player += 360
-
-            if self.direction == "right":
-                left_bound = 360 - (self.vision_angle / 2)
-                right_bound = self.vision_angle / 2
-                in_vision = (angle_to_player >= left_bound or angle_to_player <= right_bound)
-            else:
-                left_bound = 180 - (self.vision_angle / 2)
-                right_bound = 180 + (self.vision_angle / 2)
-                in_vision = (left_bound <= angle_to_player <= right_bound)
-
-            if in_vision:
-                self.attacking = False
-                self.player_in_vision = True
-                return "shoot"
-            else:
-                self.attacking = False
-                self.player_in_vision = False
-                return False
-
-        return False
+            self.attacking = True
+            self.player_in_vision = True
+            return "attack"
+        else:
+            self.attacking = False
+            self.player_in_vision = True
+            return "shoot"
 
     def check_and_dodge_bullets(self, player_ammo_group):
         """
@@ -399,6 +425,7 @@ class FierceTooth(Enemy):
             player (Player): The player object used for vision and collision checks.
             ammo_sprites (dict): Sprite frames for enemy ammo animations.
             ammo_group (Group): Group to add spawned CannonBall sprites.
+            constraint_rect_group (Group): Group of constraint rects for collision checks.
         """
         self.check_alive()
         self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -407,13 +434,38 @@ class FierceTooth(Enemy):
         # Capture previous vision state and update current vision once
         previous_vision = self.player_in_vision
         if player:
-            vision_result = self.check_vision_cone(player)
+            vision_result = self.check_vision_cone(player, obstacle_list, constraint_rect_group)
         else:
             vision_result = False
         
         # Shooting logic
         if vision_result == "shoot" and self.hit_anim_timer == 0 and self.shoot_cooldown == 0 and random.randint(1, 2) == 1:
             self.shoot(ammo_sprites, ammo_group)
+
+        if constraint_rect_group and self.alive:
+            for constraint in constraint_rect_group:
+                if constraint.colour != PURPLE:
+                    continue
+
+                if not self.rect.colliderect(constraint.rect):
+                    continue
+
+                if self.speed == 2:
+                    if random.randint(1, 2) == 2:
+                        if self.on_ground and self.jump_count < 1:
+                            self.jump()
+                            break
+                elif self.speed == 3:
+                    if player:
+                        dx = player.rect.centerx - self.rect.centerx
+                        player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                    else:
+                        player_is_behind = False
+
+                    if not player_is_behind and (not player or player.rect.y < self.rect.y):
+                        if self.on_ground and self.jump_count < 1:
+                            self.jump()
+                            break
 
         if self.smartmode and player:
             if previous_vision and not self.player_in_vision:
@@ -552,19 +604,23 @@ class FierceTooth(Enemy):
                 self.attack_recovery_timer = 0
 
         if self.hit_anim_timer > 0:
-            self.hit_anim_timer -= 1   
+            self.hit_anim_timer -= 1    
 
-    def draw_vision_cone(self, win, player):
+    def draw_vision_cone(self, win, player, obstacle_list=None, constraint_rect_group=None):
         """
         Draw a debug visualisation of the enemy's vision cone and a line to the player when in vision.
 
-        Args:
-            win (Surface): Surface to draw on.
-            player (Player): Player object for drawing a line when visible.
+        Behaviour:
+          - Rays are clipped to the nearest obstacle intersection.
+          - RED constraint rects immediately block vision: as soon as a ray touches a RED
+            constraint rect it stops there (no sliding along edges).
+          - For non-RED obstacle hits downward rays slide along platform tops, upward rays stop
+            at platform undersides. Sliding is now clamped by RED constraint rects so a ray
+            cannot slide past a RED constraint.
         """
         if not self.alive:
             return
-    
+
         center_x = self.rect.centerx
         center_y = self.rect.centery
 
@@ -572,33 +628,254 @@ class FierceTooth(Enemy):
         half_angle = self.vision_angle / 2
         left_angle = math.radians(base_angle - half_angle)
         right_angle = math.radians(base_angle + half_angle)
-        
+
         left_x = center_x + self.vision_range * math.cos(left_angle)
         left_y = center_y + self.vision_range * math.sin(left_angle)
         right_x = center_x + self.vision_range * math.cos(right_angle)
         right_y = center_y + self.vision_range * math.sin(right_angle)
 
-        # Clip rays at the floor when grounded; allow full rays when airborne
-        if self.y_vel == 0 or self.y_vel == 10:
-            floor_y = self.rect.bottom
+        def _normalise_clip(clip):
+            if isinstance(clip[0], tuple):
+                (ix1, iy1), (ix2, iy2) = clip
+            else:
+                ix1, iy1, ix2, iy2 = clip
+            return ix1, iy1, ix2, iy2
 
-            def clip_and_flatten(x, y):
-                if y <= floor_y:
-                    return x, y
-                # If the ray points below the floor, flatten it to floor level and extend forward horizontally
-                direction_sign = 1 if x >= center_x else -1
-                return center_x + direction_sign * self.vision_range, floor_y
+        def clip_ray(sx, sy, ex, ey):
+            """
+            Return (px, py, blocker_type) where blocker_type is:
+              - 'constraint' if the nearest intersection is a RED constraint rect
+              - 'obstacle' if the nearest intersection is a normal obstacle tile
+              - None if no intersection
+            """
+            nearest = None
+            nearest_dist = None
+            nearest_type = None
 
-            left_x, left_y = clip_and_flatten(left_x, left_y)
-            right_x, right_y = clip_and_flatten(right_x, right_y)
+            # check obstacle tiles first
+            if obstacle_list:
+                for tile in obstacle_list:
+                    clip = tile.collide_rect.clipline((sx, sy), (ex, ey))
+                    if not clip:
+                        continue
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    if d1 <= d2:
+                        d = d1
+                        px, py = ix1, iy1
+                    else:
+                        d = d2
+                        px, py = ix2, iy2
 
-        cone_points = [
-            (center_x, center_y),
-            (left_x, left_y),
-            (right_x, right_y)
-        ]
-        pygame.draw.polygon(win, (255, 0, 0, 100), cone_points, 2)
-        
+                    if nearest is None or d < nearest_dist:
+                        nearest = (px, py)
+                        nearest_dist = d
+                        nearest_type = 'obstacle'
+
+            # check RED constraint rects and treat them as stronger blockers
+            if constraint_rect_group:
+                for constraint in constraint_rect_group:
+                    if getattr(constraint, "colour", None) != RED:
+                        continue
+                    clip = constraint.rect.clipline((sx, sy), (ex, ey))
+                    if not clip:
+                        continue
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    if d1 <= d2:
+                        d = d1
+                        px, py = ix1, iy1
+                    else:
+                        d = d2
+                        px, py = ix2, iy2
+
+                    # prefer constraint if it's closer (or if prior nearest wasn't constraint)
+                    if nearest is None or d < nearest_dist - 1e-9 or nearest_type != 'constraint':
+                        nearest = (px, py)
+                        nearest_dist = d
+                        nearest_type = 'constraint'
+
+            if nearest is not None:
+                return nearest[0], nearest[1], nearest_type
+            return ex, ey, None
+
+        def find_edge_segment(hit_x, hit_y, edge):
+            """
+            edge: 'top' or 'bottom'
+            Return merged interval (left, right, edge_y) covering contiguous tiles that share the same edge.
+            """
+            if not obstacle_list:
+                return None
+
+            tol = 6
+            candidates = []
+            for tile in obstacle_list:
+                r = tile.collide_rect
+                if r.collidepoint(hit_x, hit_y):
+                    candidates.append(r)
+                else:
+                    edge_y = r.top if edge == "top" else r.bottom
+                    if abs(hit_y - edge_y) <= tol and (r.left - 1) <= hit_x <= (r.right + 1):
+                        candidates.append(r)
+
+            if not candidates:
+                return None
+
+            edge_y = candidates[0].top if edge == "top" else candidates[0].bottom
+
+            same_edge = []
+            for tile in obstacle_list:
+                r = tile.collide_rect
+                r_edge = r.top if edge == "top" else r.bottom
+                if abs(r_edge - edge_y) <= 2:
+                    same_edge.append(r)
+
+            if not same_edge:
+                return None
+
+            intervals = sorted([(r.left, r.right) for r in same_edge], key=lambda t: t[0])
+            merged = []
+            for a, b in intervals:
+                if not merged or a > merged[-1][1] + 2:
+                    merged.append([a, b])
+                else:
+                    merged[-1][1] = max(merged[-1][1], b)
+
+            for a, b in merged:
+                if a - 2 <= hit_x <= b + 2:
+                    return (a, b, edge_y)
+
+            best = None
+            best_dist = float('inf')
+            for a, b in merged:
+                dist = min(abs(hit_x - a), abs(hit_x - b))
+                if dist < best_dist:
+                    best_dist = dist
+                    best = (a, b, edge_y)
+            return best
+
+        def clamp_to_vision(px, py):
+            dx = px - center_x
+            dy = py - center_y
+            d = math.hypot(dx, dy)
+            if d <= self.vision_range or d == 0:
+                return px, py
+            scale = self.vision_range / d
+            return center_x + dx * scale, center_y + dy * scale
+
+        # clip rays and know whether hit was a constraint
+        left_px, left_py, left_type = clip_ray(center_x, center_y, left_x, left_y)
+        right_px, right_py, right_type = clip_ray(center_x, center_y, right_x, right_y)
+
+        def slide_or_stop(px, py, hit_type):
+            # immediate stop on RED constraint
+            if hit_type == 'constraint':
+                return px, py
+
+            # slide along edge for non-constraint hits
+            edge = "bottom" if py < center_y else "top"
+            seg = find_edge_segment(px, py, edge)
+            if not seg:
+                return px, py
+            a, b, edge_y = seg
+            end_x = b if px >= center_x else a
+            end_y = edge_y
+
+            # clamp sliding endpoint so it does not pass any RED constraint that lies between
+            # center_x and end_x at approximately the same vertical (edge_y).
+            if constraint_rect_group:
+                if end_x > center_x:
+                    # sliding right -> clamp to nearest RED constraint.left that lies between center_x and end_x
+                    for c in constraint_rect_group:
+                        if getattr(c, "colour", None) != RED:
+                            continue
+                        r = c.rect
+                        # check vertical overlap with edge_y (small tolerance)
+                        if r.top - 2 <= end_y <= r.bottom + 2:
+                            if r.left >= center_x and r.left <= end_x:
+                                end_x = min(end_x, r.left)
+                else:
+                    # sliding left -> clamp to nearest RED constraint.right between end_x and center_x
+                    for c in constraint_rect_group:
+                        if getattr(c, "colour", None) != RED:
+                            continue
+                        r = c.rect
+                        if r.top - 2 <= end_y <= r.bottom + 2:
+                            if r.right <= center_x and r.right >= end_x:
+                                end_x = max(end_x, r.right)
+
+            end_x, end_y = clamp_to_vision(end_x, end_y)
+            return end_x, end_y
+
+        left_x, left_y = slide_or_stop(left_px, left_py, left_type)
+        right_x, right_y = slide_or_stop(right_px, right_py, right_type)
+
+        # safety flattening to floor
+        floor_y = self.rect.bottom
+        def flatten_to_floor(px, py):
+            if py <= floor_y:
+                return px, py
+            direction_sign = 1 if px >= center_x else -1
+            return center_x + direction_sign * self.vision_range, floor_y
+
+        left_x, left_y = flatten_to_floor(left_x, left_y)
+        right_x, right_y = flatten_to_floor(right_x, right_y)
+
+        # draw the two edge rays and small hit markers
+        pygame.draw.line(win, (255, 0, 0), (center_x, center_y), (int(left_x), int(left_y)), 2)
+        pygame.draw.line(win, (255, 0, 0), (center_x, center_y), (int(right_x), int(right_y)), 2)
+
+        pygame.draw.circle(win, (255, 0, 0), (int(left_x), int(left_y)), 3)
+        pygame.draw.circle(win, (255, 0, 0), (int(right_x), int(right_y)), 3)
+
+        # draw player line (green) stopping at nearest obstacle or RED constraint
         if self.player_in_vision:
-            pygame.draw.line(win, (0, 255, 0), (center_x, center_y), 
-                        (player.rect.centerx, player.rect.centery), 2)
+            px, py = player.rect.centerx, player.rect.centery
+            if self._blocked_by_obstacle((center_x, center_y), (px, py), obstacle_list, constraint_rect_group):
+                nearest = None
+                nearest_dist = None
+                # check obstacles
+                if obstacle_list:
+                    for tile in obstacle_list:
+                        clip = tile.collide_rect.clipline((center_x, center_y), (px, py))
+                        if not clip:
+                            continue
+                        ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                        d1 = math.hypot(ix1 - center_x, iy1 - center_y)
+                        d2 = math.hypot(ix2 - center_x, iy2 - center_y)
+                        if d1 <= d2:
+                            d = d1
+                            pt = (ix1, iy1)
+                        else:
+                            d = d2
+                            pt = (ix2, iy2)
+                        if nearest is None or d < nearest_dist:
+                            nearest = pt
+                            nearest_dist = d
+                # check RED constraints (they should take precedence if nearer)
+                if constraint_rect_group:
+                    for constraint in constraint_rect_group:
+                        if getattr(constraint, "colour", None) != RED:
+                            continue
+                        clip = constraint.rect.clipline((center_x, center_y), (px, py))
+                        if not clip:
+                            continue
+                        ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                        d1 = math.hypot(ix1 - center_x, iy1 - center_y)
+                        d2 = math.hypot(ix2 - center_x, iy2 - center_y)
+                        if d1 <= d2:
+                            d = d1
+                            pt = (ix1, iy1)
+                        else:
+                            d = d2
+                            pt = (ix2, iy2)
+                        if nearest is None or d < nearest_dist:
+                            nearest = pt
+                            nearest_dist = d
+
+                if nearest:
+                    pygame.draw.line(win, (0, 255, 0), (center_x, center_y), nearest, 2)
+            else:
+                pygame.draw.line(win, (0, 255, 0), (center_x, center_y), (px, py), 2)

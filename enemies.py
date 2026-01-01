@@ -158,7 +158,7 @@ class Enemy(pygame.sprite.Sprite):
 
         if self.enemy_type == "Fiercetooth":
             for constraint in constraint_rect_group:
-                if constraint.color == RED:
+                if constraint.colour == RED:
                     if self.rect.colliderect(constraint.rect):
                         if self.velocity.x > 0:  
                             self.direction = "left"
@@ -169,16 +169,14 @@ class Enemy(pygame.sprite.Sprite):
 
                         self.position.x = self.rect.x
 
-        world_right = MAX_COLS * TILE_SIZE
-
         if self.rect.left + self.velocity.x <= 0:
             self.direction = "right"
             self.velocity.x = 0
             self.position.x = 0
-        elif self.rect.right + self.velocity.x > world_right:
+        elif self.rect.right + self.velocity.x > WORLD_WIDTH:
             self.direction = "left"
             self.velocity.x = 0
-            self.position.x = world_right - self.rect.width
+            self.position.x = WORLD_WIDTH - self.rect.width
     
     def jump(self):
         """

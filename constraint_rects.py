@@ -1,5 +1,5 @@
 import pygame
-from constants import RED, BLUE, ORANGE, TILE_SIZE
+from constants import RED, PURPLE, ORANGE, TILE_SIZE
 
 
 class ConstraintRect(pygame.sprite.Sprite):
@@ -11,7 +11,7 @@ class ConstraintRect(pygame.sprite.Sprite):
         if tile_number == 25:
             self.colour = RED
         elif tile_number == 26:
-            self.colour = BLUE
+            self.colour = PURPLE
         elif tile_number == 29:
             self.colour = ORANGE
 

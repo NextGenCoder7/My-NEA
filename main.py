@@ -15,6 +15,22 @@ WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption(TITLE)
 
 
+class Camera:
+
+    def __init__(self, screen_width: int, world_width: int, scroll_area: int):
+        self.screen_width = screen_width
+        self.world_width = world_width
+        self.scroll_area = scroll_area
+        self.scroll = 0
+
+    def update(self, player_rect: pygame.Rect):
+        if player_rect.centerx - self.scroll < self.scroll_area:
+            self.scroll = max(0, player_rect.centerx - self.scroll_area)
+        elif player_rect.centerx - self.scroll > self.screen_width - self.scroll_area:
+            max_scroll = max(0, self.world_width - self.screen_width)
+            self.scroll = min(max_scroll, player_rect.centerx - (self.screen_width - self.scroll_area))
+
+
 class World:
 
     GEM_SPRITES = load_collidable_objects_sprite_sheets(16, 16, "gem")
@@ -85,7 +101,7 @@ class World:
                             self.checkpoint_group.add(flag)
                     elif tile == 18:     # player tile
                         PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)                       
-                        self.player = Player(x * TILE_SIZE, y * TILE_SIZE, 3, PLAYER_SPRITES, 15, 50, self.GEM_SPRITES, self.GRENADE_SPRITES)
+                        self.player = Player(x * TILE_SIZE, y * TILE_SIZE, 3, PLAYER_SPRITES, 100, 50, self.GEM_SPRITES, self.GRENADE_SPRITES)
                     elif tile == 19:    # FierceTooth enemy tile
                         FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
@@ -118,9 +134,59 @@ class World:
         self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.danger_zones, self.grenade_box_group, self.checkpoint_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
-    def draw_world(self, bg1, scroll, win):
-        draw_bg(bg1, win, scroll)
-        pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor
+    def draw_world(self, bg1, camera: Camera, win):
+        draw_bg(bg1, win, camera.scroll)
+        # pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor
+
+        shifted = []
+        def _shift_rect(obj, attr_name, dx):
+            if not hasattr(obj, attr_name):
+                return
+            rect = getattr(obj, attr_name)
+            old_x = rect.x
+            rect.x = int(rect.x - dx)
+            shifted.append((obj, attr_name, old_x))
+
+        for tile in self.obstacle_group:
+            _shift_rect(tile, 'rect', camera.scroll)
+            if hasattr(tile, 'collide_rect'):
+                cr = tile.collide_rect
+                old_cr_x = cr.x
+                cr.x = int(cr.x - camera.scroll)
+                shifted.append((tile, 'collide_rect', old_cr_x))
+
+        for rect in self.constraint_rect_group:
+            _shift_rect(rect, 'rect', camera.scroll)
+
+        for flag in self.checkpoint_group:
+            _shift_rect(flag, 'rect', camera.scroll)
+        if self.level_end_flag is not None:
+            _shift_rect(self.level_end_flag, 'rect', camera.scroll)
+
+        for gem in self.collectible_gem_group:
+            _shift_rect(gem, 'rect', camera.scroll)
+        for grenade_box in self.grenade_box_group:
+            _shift_rect(grenade_box, 'rect', camera.scroll)
+        for hazard in self.hazard_group:
+            _shift_rect(hazard, 'rect', camera.scroll)
+
+        for enemy in self.fiercetooth_group:
+            _shift_rect(enemy, 'rect', camera.scroll)
+        for enemy in self.seashell_group:
+            _shift_rect(enemy, 'rect', camera.scroll)
+        for enemy in self.pink_star_group:
+            _shift_rect(enemy, 'rect', camera.scroll)
+
+        for pearl in self.pearl_group:
+            _shift_rect(pearl, 'rect', camera.scroll)
+        for cannon_ball in self.cannon_ball_group:
+            _shift_rect(cannon_ball, 'rect', camera.scroll)
+        for ammo in self.player_ammo_group:
+            _shift_rect(ammo, 'rect', camera.scroll)
+        for grenade in self.player_grenade_group:
+            _shift_rect(grenade, 'rect', camera.scroll)
+
+        _shift_rect(self.player, 'rect', camera.scroll)
 
         for tile in self.obstacle_group:
             tile.draw(win)
@@ -131,6 +197,9 @@ class World:
 
         for flag in self.checkpoint_group:
             flag.draw(win)
+
+        if self.level_end_flag is not None:
+            self.level_end_flag.draw(win)
 
         self.player.draw(win)
         self.player.draw_stamina_bar(win)
@@ -150,7 +219,7 @@ class World:
         for enemy in self.fiercetooth_group:
             enemy.draw(win)
             enemy.draw_health_bar(win)
-            # enemy.draw_vision_cone(win, player)   # for debugging enemy vision
+            enemy.draw_vision_cone(win, self.player, self.obstacle_group, self.constraint_rect_group)   # for debugging enemy vision
 
         for enemy in self.seashell_group:
             enemy.draw(win)
@@ -161,8 +230,8 @@ class World:
             enemy.draw(win)
             enemy.draw_health_bar(win)
 
-        for ammo in self.pearl_group:
-            ammo.draw(win)
+        for pearl in self.pearl_group:
+            pearl.draw(win)
 
         for cannon_ball in self.cannon_ball_group:
             cannon_ball.draw(win)
@@ -174,6 +243,11 @@ class World:
             grenade.draw(win)
 
         pygame.display.update()
+
+        for obj, attr, old_x in shifted:
+            rect = getattr(obj, attr)
+            rect.x = old_x
+        # do I not need to restore the collide_rects here as well for the obstacles?
 
 
 def main(win):
@@ -191,42 +265,9 @@ def main(win):
     obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
     collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
-    # collectible_gem_group = pygame.sprite.Group()
-    # grenade_box_group = pygame.sprite.Group()
-    # player_ammo_group = pygame.sprite.Group()
-    # player_grenade_group = pygame.sprite.Group()
-    # fiercetooth_group = pygame.sprite.Group()
-    # cannon_ball_group = pygame.sprite.Group()
-    # seashell_group = pygame.sprite.Group()
-    # pearl_group = pygame.sprite.Group()
-    # pink_star_group = pygame.sprite.Group()
+    camera = Camera(WIDTH, WORLD_WIDTH, SCROLL_AREA_WIDTH)
 
     bg1 = load_image('1', 'Locations', 'Backgrounds', 'Blue Nebula')
-
-    # grenade_box_img = load_image('28', 'Level Editor Tiles')
-    # grenade_box_img = pygame.transform.scale(grenade_box_img, (TILE_SIZE // 2, TILE_SIZE // 2))
-    # grenade_box = GrenadeBox(690, 340, grenade_box_img)
-    # grenade_box_group.add(grenade_box)
-
-    # PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)
-    # GEM_SPRITES = load_gem_sprite_sheets(16, 16)
-    # GRENADE_SPRITES = load_ammo_sprites('Player')
-
-    # FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
-    # CANNON_BALL_SPRITES = load_ammo_sprites('Fierce Tooth')
-
-    # SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
-    # PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
-    # PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
-
-    # player = Player(600, HEIGHT // 3, 3, PLAYER_SPRITES, 15, 50, GEM_SPRITES, GRENADE_SPRITES)
-
-    # enemy = FierceTooth(150, 300, 2, FIERCETOOTH_SPRITES, 80, True)   
-    # enemy2 = SeashellPearl(400, 360, 0, SEASHELL_SPRITES, 120, True)     
-    # enemy3 = PinkStar(200, 300, 3, PINKSTAR_SPRITES, 500)
-    # fiercetooth_group.add(enemy)
-    # seashell_group.add(enemy2)
-    # pink_star_group.add(enemy3)
 
     enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group) 
 
@@ -248,11 +289,9 @@ def main(win):
             if player.grenade_charge_time > player.GRENADE_MAX_CHARGE_SECONDS:
                 player.grenade_charge_time = player.GRENADE_MAX_CHARGE_SECONDS
 
-        world.draw_world(bg1, scroll, win)
-
         for enemy in fiercetooth_group:  
             if enemy.alive:
-                enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group)
+                enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group, obstacle_list, constraint_rect_group)
                 enemy.handle_movement(obstacle_list, constraint_rect_group)           
                 enemy.update_sprite(player)
 
@@ -293,6 +332,8 @@ def main(win):
 
             if player.shoot:
                 player.shoot_ammo(GEM_SPRITES, player_ammo_group)
+
+            camera.update(player.rect)
 
             for zone_rect, validated in danger_zones:
                 if validated and zone_rect.colliderect(player.rect):
@@ -342,6 +383,8 @@ def main(win):
 
         level_end_flag.update(player)
         level_end_flag.update_sprite()
+
+        world.draw_world(bg1, camera, win)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

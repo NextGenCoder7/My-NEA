@@ -1,5 +1,5 @@
 import pygame
-from constants import WIDTH, FPS, TILE_SIZE
+from constants import WIDTH, FPS, TILE_SIZE, WORLD_WIDTH
 import math
 from random import randint
 
@@ -211,7 +211,7 @@ class PurpleGem(CollectibleGem):
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
         
-        if self.rect.right < 0 or self.rect.left > WIDTH:
+        if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
             self.kill()
 
         for enemy in enemies_group:
@@ -498,7 +498,7 @@ class Pearl(pygame.sprite.Sprite):
             self.rect.topleft = (int(self.position.x), int(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
 
-            if self.rect.right < 0 or self.rect.left > WIDTH:
+            if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
                 self.kill()
                 return
 
@@ -628,7 +628,7 @@ class CannonBall(pygame.sprite.Sprite):
             self.rect.topleft = (int(self.position.x), int(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
 
-            if self.rect.right < 0 or self.rect.left > WIDTH:
+            if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
                 self.kill()
                 return
 
@@ -877,6 +877,10 @@ class Grenade(pygame.sprite.Sprite):
 
             self.rect.topleft = (round(self.position.x), round(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
+
+            if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
+                self.kill()
+                return
 
         elif self.state == "blast":
             if not self._blast_applied:
