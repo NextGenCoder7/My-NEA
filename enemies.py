@@ -90,7 +90,7 @@ class Enemy(pygame.sprite.Sprite):
         self.is_enemy = True
         self.enemy_type = ""
         
-    def handle_movement(self, obstacle_list, constraint_rect_group):
+    def handle_movement(self, obstacle_list, constraint_rect_group, player):
         """
         Handles AI movement logic (general default movement for all enemies).
         """
@@ -140,6 +140,21 @@ class Enemy(pygame.sprite.Sprite):
                     self.rect.top = tile.collide_rect.bottom
                     self.position.y = self.rect.y
                     self.y_vel = 0
+
+        if player and self.collide(player):
+            if dy > 0 and self.rect.centery < player.rect.centery and self.rect.bottom >= player.rect.top:
+                self.rect.bottom = player.rect.top
+                self.position.y = self.rect.y
+                self.y_vel = -11
+                self.jump_count = 1
+                if hasattr(player, "get_hit") and player.alive:
+                    player.get_hit(20, attacker=self)
+                    self.post_attack_recovery = True
+                    self.attack_recovery_timer = 0
+                    self.attack_cooldown = 60
+            elif dy < 0 and self.rect.centery > player.rect.centery and self.rect.top <= player.rect.bottom:
+                self.rect.top = player.rect.bottom
+                self.position.y = self.rect.y
         
         self.position.x += self.velocity.x
         self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -155,6 +170,14 @@ class Enemy(pygame.sprite.Sprite):
                     self.rect.left = tile.collide_rect.right
 
                 self.position.x = self.rect.x
+
+        if player and self.collide(player):
+            if self.velocity.x > 0:  
+                self.rect.right = player.rect.left
+            elif self.velocity.x < 0:  
+                self.rect.left = player.rect.right
+
+            self.position.x = self.rect.x
 
         if self.enemy_type == "Fiercetooth":
             for constraint in constraint_rect_group:

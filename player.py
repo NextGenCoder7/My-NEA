@@ -182,11 +182,11 @@ class Player(pygame.sprite.Sprite):
         if enemies_group:
             for enemy in enemies_group:
                 if enemy.alive and self.collide(enemy):   
-                    dx = abs(self.rect.centerx - enemy.rect.centerx)
-
-                    if self.y_vel > 2 and dx <= (enemy.rect.width // 2):   
+                    if dy > 0 and self.rect.centery < enemy.rect.centery and self.rect.bottom >= enemy.rect.top:  
+                        self.rect.bottom = enemy.rect.top
+                        self.position.y = self.rect.y
                         self.y_vel = -11
-                        self.jump_count = 1
+                        self.jump_count = 1                       
                         
                         in_recovery = False
                         if hasattr(enemy, "post_bite_recovery"):
@@ -196,12 +196,9 @@ class Player(pygame.sprite.Sprite):
 
                         if hasattr(enemy, "get_hit") and not in_recovery:
                             enemy.get_hit(20, attacker=self)
-                    else:
-                        if self.y_vel < 0:
-                            self.rect.top = enemy.rect.bottom                    
-
+                    elif dy < 0 and self.rect.centery > enemy.rect.centery and self.rect.top <= enemy.rect.bottom:
+                        self.rect.top = enemy.rect.bottom
                         self.position.y = self.rect.y
-                        self.y_vel = 0
 
         self.position.x += self.velocity.x
         self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -219,17 +216,12 @@ class Player(pygame.sprite.Sprite):
             for enemy in enemies_group:
                 if enemy.alive:                     # don't collide with a dead enemy!
                     if self.collide(enemy):                
-                        dx = abs(self.rect.centerx - enemy.rect.centerx)
-                        
-                        if self.y_vel > 2 and dx <= (enemy.rect.width // 2):   
-                            continue
-                        else:
-                            if self.rect.centerx < enemy.rect.centerx:
-                                self.rect.right = enemy.rect.left
-                            else:
-                                self.rect.left = enemy.rect.right
+                        if self.velocity.x > 0:  
+                            self.rect.right = enemy.rect.left
+                        elif self.velocity.x < 0:  
+                            self.rect.left = enemy.rect.right
 
-                            self.position.x = self.rect.x
+                        self.position.x = self.rect.x
 
     def handle_death(self, screen_height):
         """

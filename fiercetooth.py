@@ -511,18 +511,6 @@ class FierceTooth(Enemy):
             self.moving_left = (self.direction == "left")
             self.moving_right = (self.direction == "right")
 
-        if player and self.collide(player):
-            if self.y_vel > 0 and self.rect.centery < player.rect.centery and self.rect.bottom >= player.rect.top:
-                self.rect.bottom = player.rect.top
-                self.position.y = self.rect.y
-                self.y_vel = 0
-                self.jump_count = 0
-                if hasattr(player, "get_hit") and player.alive:
-                    player.get_hit(20, attacker=self)
-                    self.post_attack_recovery = True
-                    self.attack_recovery_timer = 0
-                    self.attack_cooldown = 60
-
         if self.player_in_vision and not self.post_attack_recovery and self.hit_anim_timer == 0:
             if self.grenade_flee_timer == 0:
                 self.speed = 3
@@ -572,30 +560,36 @@ class FierceTooth(Enemy):
             if self.grenade_flee_timer == 0:
                 self.speed = 2
 
-        # the collision check for attacking 
+        if player and self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0 and self.y_vel < 1:
+            dx = player.rect.centerx - self.rect.centerx
+            dy = player.rect.centery - self.rect.centery
+            distance = math.hypot(dx, dy)
+            height_difference = abs(player.rect.centery - self.rect.centery)
+
+            if distance <= self.attack_range // 2 and height_difference < 10:
+                if player.alive:
+                    player.get_hit(30, attacker=self)
+                self.post_attack_recovery = True
+                self.attack_recovery_timer = 0
+                self.attack_cooldown = 60
+
         if player and self.collide(player):   
             player_center_y = player.rect.centery
             enemy_center_y = self.rect.centery
             height_difference = abs(player_center_y - enemy_center_y)
 
             if height_difference < 10:
-                if self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0 and self.y_vel < 1:
-                    if player.alive:
-                        player.get_hit(30, attacker=self)
-                    self.post_attack_recovery = True
-                    self.attack_recovery_timer = 0
-                    self.attack_cooldown = 60
-            if self.smartmode and self.grenade_flee_timer == 0:
-                dx = player.rect.centerx - self.rect.centerx
-                player_is_behind = (self.direction == "right" and dx <= -10) or \
-                            (self.direction == "left" and dx >= 10)
+                if self.smartmode and self.grenade_flee_timer == 0:
+                    dx = player.rect.centerx - self.rect.centerx
+                    player_is_behind = (self.direction == "right" and dx <= -10) or \
+                                (self.direction == "left" and dx >= 10)
 
-                if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
-                    self.direction = "left" if self.direction == "right" else "right"
-                    self.attacking = True
-                    self.attack_cooldown = 0
-                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
-                    self.turn_cooldown = self.TURN_COOLDOWN
+                    if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
+                        self.direction = "left" if self.direction == "right" else "right"
+                        self.attacking = True
+                        self.attack_cooldown = 0
+                        self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                        self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.post_attack_recovery:
             self.attack_recovery_timer += 1

@@ -292,7 +292,7 @@ def main(win):
         for enemy in fiercetooth_group:  
             if enemy.alive:
                 enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group, obstacle_list, constraint_rect_group)
-                enemy.handle_movement(obstacle_list, constraint_rect_group)           
+                enemy.handle_movement(obstacle_list, constraint_rect_group, player)           
                 enemy.update_sprite(player)
 
                 if hasattr(enemy, 'smartmode') and enemy.smartmode:

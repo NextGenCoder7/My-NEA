@@ -396,7 +396,7 @@ class SeashellPearl(Enemy):
                 self.turn_cooldown = self.TURN_COOLDOWN
 
         # Handle bite damage after bite starts
-        if player and self.biting and self.bite_cooldown == 0:
+        if player and self.biting and self.bite_cooldown == 0 and self.hit_anim_timer == 0:
             dx = player.rect.centerx - self.rect.centerx
             dy = player.rect.centery - self.rect.centery
             distance = math.hypot(dx, dy)
