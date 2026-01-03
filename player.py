@@ -334,12 +334,12 @@ class Player(pygame.sprite.Sprite):
                 if self.jump_count == 0:
                     self.y_vel = -14
                 else:
-                    self.y_vel = -10
+                    self.y_vel = -8
             else:
                 if self.jump_count == 0:
-                    self.y_vel = -8
+                    self.y_vel = -13
                 else:
-                    self.y_vel = -5
+                    self.y_vel = -6
 
             self.jump_count += 1
             self.on_ground = False

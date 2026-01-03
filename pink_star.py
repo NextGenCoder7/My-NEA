@@ -1,8 +1,25 @@
 import pygame
 from enemies import Enemy
 import math
+import heapq
 import random
-from constants import RED, PURPLE
+from constants import RED, PURPLE, TILE_SIZE
+
+
+class Node:
+    """
+    Node for A* pathfinding representing a purple rect position.
+    """
+
+    def __init__(self, position, parent=None):
+        self.position = position  
+        self.parent = parent
+        self.g = 0  
+        self.h = 0  
+        self.f = 0     # Total cost (g + h)
+
+    def __lt__(self, other):    # (less than)
+        return self.f < other.f
 
 
 class PinkStar(Enemy):
@@ -43,6 +60,9 @@ class PinkStar(Enemy):
 
         self.chasing_player = False
         self.path = []
+        self.current_path_index = 0
+        self.path_update_timer = 0
+        self.path_update_interval = 60
 
         self.attacking = False
         self.attack_range = 50
@@ -54,6 +74,143 @@ class PinkStar(Enemy):
         self.hit_anim_timer = 0
 
         self.enemy_type = "Pink Star"
+
+    def heuristic(self, a, b):
+        """
+        Calculate Manhattan distance between two positions.
+        """
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def find_nearest_purple_rect(self, position, purple_rects):
+        """
+        Find the nearest purple rect to the given position.
+        
+        Args:
+            position: (x, y) position to find nearest rect to
+            purple_rects: List of purple constraint rectangles
+            
+        Returns:
+            (x, y) center position of nearest purple rect, or None if no rects found
+        """
+
+        if not purple_rects:
+            return None
+        
+        min_dist = float('inf')
+        nearest_pos = None
+        
+        for purple_rect in purple_rects:
+            center_x = purple_rect.rect.centerx
+            center_y = purple_rect.rect.centery
+            dist = self.heuristic(position, (center_x, center_y))
+            if dist < min_dist:
+                min_dist = dist
+                nearest_pos = (center_x, center_y)
+        
+        return nearest_pos
+
+    def get_purple_rect_connections(self, purple_rects):
+        """
+        Build a graph of connections between purple rects.
+        Two rects are connected if:
+        - They're on the same Y level and horizontally reachable
+        - One is above the other (vertical connection, requires jump)
+        
+        Returns:
+            dict mapping (x, y) -> list of connected (x, y) positions
+        """
+
+        connections = {}
+        
+        for purple_rect in purple_rects:
+            pos = (purple_rect.rect.centerx, purple_rect.rect.centery)
+            connections[pos] = []
+            
+            for other_rect in purple_rects:
+                if purple_rect == other_rect:
+                    continue
+                
+                other_pos = (other_rect.rect.centerx, other_rect.rect.centery)
+                
+                if abs(pos[1] - other_pos[1]) < 10:  
+                    connections[pos].append(other_pos)
+                elif abs(pos[0] - other_pos[0]) < TILE_SIZE * 2 and other_pos[1] < pos[1]:  
+                    gap = pos[1] - other_pos[1]
+                    if gap <= (TILE_SIZE * 2) + 20:  
+                        connections[pos].append(other_pos)
+        
+        return connections
+
+    def astar_pathfinding(self, start_pos, goal_pos, purple_rects):
+        """
+        A* pathfinding algorithm using purple rects as nodes.
+        
+        Args:
+            start_pos: (x, y) starting position (nearest purple rect to enemy)
+            goal_pos: (x, y) goal position (nearest purple rect to player)
+            purple_rects: List of purple constraint rectangles
+            
+        Returns:
+            List of (x, y) positions representing the path, or None if no path found.
+        """
+
+        if not start_pos or not goal_pos:
+            return None
+        
+        if start_pos == goal_pos:
+            return [start_pos]
+        
+        connections = self.get_purple_rect_connections(purple_rects)
+        
+        open_set = []
+        closed_set = set()
+        
+        start_node = Node(start_pos)
+        goal_node = Node(goal_pos)
+        
+        heapq.heappush(open_set, start_node)
+
+        while open_set:
+            current_node = heapq.heappop(open_set)
+            closed_set.add(current_node.position)
+            
+            if current_node.position == goal_node.position:
+                # Reconstruct path
+                path = []
+                while current_node:
+                    path.append(current_node.position)
+                    current_node = current_node.parent
+                return path[::-1]
+
+            neighbors = connections.get(current_node.position, [])
+            
+            for next_pos in neighbors:
+                if next_pos in closed_set:
+                    continue
+
+                is_vertical = abs(current_node.position[1] - next_pos[1]) > 10
+                move_cost = 2 if is_vertical else 1
+                
+                neighbor = Node(next_pos, current_node)
+                neighbor.g = current_node.g + move_cost
+                neighbor.h = self.heuristic(neighbor.position, goal_node.position)
+                neighbor.f = neighbor.g + neighbor.h
+                
+                found_better = False
+                for i, open_node in enumerate(open_set):
+                    if open_node.position == neighbor.position:
+                        if open_node.g <= neighbor.g:
+                            found_better = True
+                            break
+                        else:
+                            open_set.pop(i)
+                            heapq.heapify(open_set)
+                            break
+                
+                if not found_better:
+                    heapq.heappush(open_set, neighbor)
+
+        return None
 
     def handle_death(self):
         self.y_vel += self.GRAVITY
@@ -74,30 +231,68 @@ class PinkStar(Enemy):
     def handle_movement(self, obstacle_list, constraint_rect_group, player):
         """
         Handles AI movement logic (specific movement for Pink Star enemies).
+        Uses A* pathfinding when player is in danger zone.
         """
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
 
-        self.state_timer += 1
-        if self.state_timer >= self.state_duration:
-            if self.state == "idle":
-                if random.random() < 0.5:
-                    self.direction = "left" if self.direction == "right" else "right"
-                self.state = "running"
-                self.state_duration = random.randint(60, 180)
-            else:
-                self.state = "idle"
-                self.state_duration = random.randint(60, 180)
-            self.state_timer = 0
+        if not self.chasing_player or not self.path:
+            self.state_timer += 1
+            if self.state_timer >= self.state_duration:
+                if self.state == "idle":
+                    if random.random() < 0.5:
+                        self.direction = "left" if self.direction == "right" else "right"
+                    self.state = "running"
+                    self.state_duration = random.randint(60, 180)
+                else:
+                    self.state = "idle"
+                    self.state_duration = random.randint(60, 180)
+                self.state_timer = 0
 
-        if self.state == "running":
-            if self.direction == "right":
-                self.velocity.x = self.speed
-                self.moving_right = True
-            else:
-                self.velocity.x = -self.speed
-                self.moving_left = True
+            if self.state == "running":
+                if self.direction == "right":
+                    self.velocity.x = self.speed
+                    self.moving_right = True
+                else:
+                    self.velocity.x = -self.speed
+                    self.moving_left = True
+        else:
+            if self.current_path_index < len(self.path):
+                target_pos = self.path[self.current_path_index]
+                target_x, target_y = target_pos
+                
+                dist_to_target = math.hypot(self.rect.centerx - target_x, self.rect.centery - target_y)
+
+                if dist_to_target < 10:  # Close enough to target node
+                    self.current_path_index += 1
+                    if self.current_path_index >= len(self.path):
+                        # Reached end of path, recalculate on next update
+                        self.path = []
+                        self.current_path_index = 0
+                        return
+
+                    target_pos = self.path[self.current_path_index]
+                    target_x, target_y = target_pos
+
+                dx = target_x - self.rect.centerx
+                dy = target_y - self.rect.centery
+                
+                if abs(dx) > 5:
+                    if dx > 0:
+                        self.velocity.x = self.speed
+                        self.direction = "right"
+                        self.moving_right = True
+                    else:
+                        self.velocity.x = -self.speed
+                        self.direction = "left"
+                        self.moving_left = True
+                    self.state = "running"
+                    self.state_timer = 0
+                else:
+                    if dy < -10:  
+                        if self.on_ground and self.jump_count < 1:
+                            self.jump()
         
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
@@ -132,6 +327,8 @@ class PinkStar(Enemy):
 
                 if hasattr(player, "get_hit") and player.alive:
                     player.get_hit(50, attacker=self)
+                    self.attacking = False
+                    self.chasing_player = False
                     self.post_attack_recovery = True
                     self.attack_recovery_timer = 0
                     self.attack_cooldown = 150
@@ -276,27 +473,59 @@ class PinkStar(Enemy):
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
-        self.attacking = False
+        dx = player.rect.centerx - self.rect.centerx
+        dy = player.rect.centery - self.rect.centery
+        distance = math.hypot(dx, dy)
+        if distance <= self.attack_range:
+            self.attacking = True
 
-        if constraint_rect_group and self.alive:
+        purple_rects = []
+        if constraint_rect_group:
             for constraint in constraint_rect_group:
-                if constraint.colour != PURPLE:
-                    continue
+                if constraint.colour == PURPLE:
+                    purple_rects.append(constraint)
 
-                if not self.rect.colliderect(constraint.rect):
-                    continue
-                else:
-                    if self.direction == "right":
-                        if self.rect.right != constraint.rect.right:
-                            continue
+        if not self.chasing_player:
+            if constraint_rect_group and self.alive:
+                for constraint in constraint_rect_group:
+                    if constraint.colour != PURPLE:
+                        continue
+
+                    if not self.rect.colliderect(constraint.rect):
+                        continue
                     else:
-                        if self.rect.left != constraint.rect.left:
-                            continue
+                        if self.direction == "right":
+                            if self.rect.right != constraint.rect.right:
+                                continue
+                        else:
+                            if self.rect.left != constraint.rect.left:
+                                continue
 
-                    if self.on_ground and self.jump_count < 1: 
-                        self.speed = 4
-                        self.jump()
-                        break
+                        if self.on_ground and self.jump_count < 1: 
+                            self.speed = 4
+                            self.jump()
+                            break
+
+        if player and player.alive and hasattr(player, 'in_danger_zone') and player.in_danger_zone:
+            self.chasing_player = True
+            
+            self.path_update_timer += 1
+            if self.path_update_timer >= self.path_update_interval or not self.path:
+                self.path_update_timer = 0
+                
+                enemy_pos = (self.rect.centerx, self.rect.centery)
+                start_node = self.find_nearest_purple_rect(enemy_pos, purple_rects)
+                
+                player_pos = (player.rect.centerx, player.rect.centery)
+                goal_node = self.find_nearest_purple_rect(player_pos, purple_rects)
+                
+                if start_node and goal_node:
+                    self.path = self.astar_pathfinding(start_node, goal_node, purple_rects)
+                    self.current_path_index = 0
+        else:
+            self.chasing_player = False
+            self.path = []
+            self.current_path_index = 0
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
@@ -321,18 +550,20 @@ class PinkStar(Enemy):
         else:
             self.speed = 3
 
-        if player and self.collide(player): 
-            player_center_y = player.rect.centery
-            enemy_center_y = self.rect.centery
-            height_difference = abs(player_center_y - enemy_center_y)
+        if player and self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0 and self.y_vel < 1:
+            dx = player.rect.centerx - self.rect.centerx
+            dy = player.rect.centery - self.rect.centery
+            distance = math.hypot(dx, dy)
+            height_difference = abs(player.rect.centery - self.rect.centery)
 
-            if height_difference < 10:
-                if self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0:
-                    player.get_hit(90, attacker=self)
-                    self.attacking = False
-                    self.post_attack_recovery = True
-                    self.attack_recovery_timer = 0
-                    self.attack_cooldown = 150
+            if distance <= self.attack_range // 2 and height_difference < 10:
+                if player.alive:
+                    player.get_hit(30, attacker=self)
+                self.attacking = False
+                self.chasing_player = False
+                self.post_attack_recovery = True
+                self.attack_recovery_timer = 0
+                self.attack_cooldown = 150
 
         if self.post_attack_recovery:
             self.attack_recovery_timer += 1
