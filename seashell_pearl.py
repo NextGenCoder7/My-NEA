@@ -429,13 +429,24 @@ class SeashellPearl(Enemy):
         if self.hit_anim_timer > 0:
             self.hit_anim_timer -= 1   
 
-    def draw_vision_cone(self, win, player):
+    def draw_vision_cone(self, win, player, obstacle_list=None, constraint_rect_group=None):
         """
         Draw a debug visualisation of the enemy's vision cone and a line to the player when in vision.
+
+        Behaviour:
+          - Rays are clipped to the nearest obstacle intersection.
+          - RED constraint rects immediately block vision: as soon as a ray touches a RED
+            constraint rect it stops there (no sliding along edges).
+          - For non-RED obstacle hits, rays slide along the top edge of obstacles/ground
+            until vision range. Sliding is clamped by RED constraint rects so a ray
+            cannot slide past a RED constraint.
+          - Seashell is stationary and never moves/jumps, so vision is always from its fixed position.
 
         Args:
             win (Surface): Surface to draw on.
             player (Player): Player object for drawing a line when visible.
+            obstacle_list (Group): List of obstacles for collision detection.
+            constraint_rect_group (Group): Group of constraint rectangles.
         """
         if not self.alive:
             return
@@ -453,26 +464,261 @@ class SeashellPearl(Enemy):
         right_x = center_x + self.vision_range * math.cos(right_angle)
         right_y = center_y + self.vision_range * math.sin(right_angle)
 
-        # Seashell is stationary: always clip rays at its floor level
-        floor_y = self.rect.bottom
+        def _normalise_clip(clip):
+            if isinstance(clip[0], tuple):
+                (ix1, iy1), (ix2, iy2) = clip
+            else:
+                ix1, iy1, ix2, iy2 = clip
+            return ix1, iy1, ix2, iy2
 
-        def clip_and_flatten(x, y):
-            if y <= floor_y:
-                return x, y
-            # Flatten to floor level and extend forward horizontally from center
-            direction_sign = 1 if x >= center_x else -1
+        def clip_ray(sx, sy, ex, ey):
+            """
+            Return (px, py, blocker_type) where blocker_type is:
+              - 'constraint' if the nearest intersection is a RED constraint rect
+              - 'obstacle' if the nearest intersection is a normal obstacle tile
+              - None if no intersection
+            """
+            nearest = None
+            nearest_dist = None
+            nearest_type = None
+
+            # check RED constraint rects first (they take absolute precedence)
+            if constraint_rect_group:
+                for constraint in constraint_rect_group:
+                    if getattr(constraint, "colour", None) != RED:
+                        continue
+                    clip = constraint.rect.clipline((sx, sy), (ex, ey))
+                    if not clip:
+                        continue
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    if d1 <= d2:
+                        d = d1
+                        px, py = ix1, iy1
+                    else:
+                        d = d2
+                        px, py = ix2, iy2
+
+                    if nearest is None or d < nearest_dist:
+                        nearest = (px, py)
+                        nearest_dist = d
+                        nearest_type = 'constraint'
+
+            # check obstacle tiles (only if no constraint was found or constraint is further)
+            if obstacle_list:
+                for tile in obstacle_list:
+                    clip = tile.collide_rect.clipline((sx, sy), (ex, ey))
+                    if not clip:
+                        continue
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    if d1 <= d2:
+                        d = d1
+                        px, py = ix1, iy1
+                    else:
+                        d = d2
+                        px, py = ix2, iy2
+
+                    # only use obstacle if no constraint found, or if obstacle is closer
+                    if nearest_type != 'constraint' and (nearest is None or d < nearest_dist):
+                        nearest = (px, py)
+                        nearest_dist = d
+                        nearest_type = 'obstacle'
+
+            if nearest is not None:
+                return nearest[0], nearest[1], nearest_type
+            return ex, ey, None
+
+        def find_edge_segment(hit_x, hit_y, edge):
+            """
+            edge: 'top' or 'bottom'
+            Return merged interval (left, right, edge_y) covering contiguous tiles that share the same edge.
+            """
+            if not obstacle_list:
+                return None
+
+            tol = 6
+            candidates = []
+            for tile in obstacle_list:
+                r = tile.collide_rect
+                if r.collidepoint(hit_x, hit_y):
+                    candidates.append(r)
+                else:
+                    edge_y = r.top if edge == "top" else r.bottom
+                    if abs(hit_y - edge_y) <= tol and (r.left - 1) <= hit_x <= (r.right + 1):
+                        candidates.append(r)
+
+            if not candidates:
+                return None
+
+            edge_y = candidates[0].top if edge == "top" else candidates[0].bottom
+
+            same_edge = []
+            for tile in obstacle_list:
+                r = tile.collide_rect
+                r_edge = r.top if edge == "top" else r.bottom
+                if abs(r_edge - edge_y) <= 2:
+                    same_edge.append(r)
+
+            if not same_edge:
+                return None
+
+            intervals = sorted([(r.left, r.right) for r in same_edge], key=lambda t: t[0])
+            merged = []
+            for a, b in intervals:
+                if not merged or a > merged[-1][1] + 2:
+                    merged.append([a, b])
+                else:
+                    merged[-1][1] = max(merged[-1][1], b)
+
+            for a, b in merged:
+                if a - 2 <= hit_x <= b + 2:
+                    return (a, b, edge_y)
+
+            best = None
+            best_dist = float('inf')
+            for a, b in merged:
+                dist = min(abs(hit_x - a), abs(hit_x - b))
+                if dist < best_dist:
+                    best_dist = dist
+                    best = (a, b, edge_y)
+            return best
+
+        def clamp_to_vision(px, py):
+            dx = px - center_x
+            dy = py - center_y
+            d = math.hypot(dx, dy)
+            if d <= self.vision_range or d == 0:
+                return px, py
+            scale = self.vision_range / d
+            return center_x + dx * scale, center_y + dy * scale
+
+        # clip rays and know whether hit was a constraint
+        left_px, left_py, left_type = clip_ray(center_x, center_y, left_x, left_y)
+        right_px, right_py, right_type = clip_ray(center_x, center_y, right_x, right_y)
+
+        def slide_or_stop(px, py, hit_type):
+            # immediate stop on RED constraint
+            if hit_type == 'constraint':
+                return px, py
+
+            # For non-constraint hits, always slide along the top edge of obstacles/ground
+            # This works for both upward and downward rays - we slide along walkable surfaces
+            seg = find_edge_segment(px, py, "top")
+            if not seg:
+                return px, py
+            a, b, edge_y = seg
+            # Determine slide direction based on ray direction
+            end_x = b if px >= center_x else a
+            end_y = edge_y
+
+            # clamp sliding endpoint so it does not pass any RED constraint that lies between
+            # center_x and end_x at approximately the same vertical (edge_y).
+            if constraint_rect_group:
+                if end_x > center_x:
+                    # sliding right -> clamp to nearest RED constraint.left that lies between center_x and end_x
+                    for c in constraint_rect_group:
+                        if getattr(c, "colour", None) != RED:
+                            continue
+                        r = c.rect
+                        # check vertical overlap with edge_y (small tolerance)
+                        if r.top - 2 <= end_y <= r.bottom + 2:
+                            if r.left >= center_x and r.left <= end_x:
+                                end_x = min(end_x, r.left)
+                else:
+                    # sliding left -> clamp to nearest RED constraint.right between end_x and center_x
+                    for c in constraint_rect_group:
+                        if getattr(c, "colour", None) != RED:
+                            continue
+                        r = c.rect
+                        if r.top - 2 <= end_y <= r.bottom + 2:
+                            if r.right <= center_x and r.right >= end_x:
+                                end_x = max(end_x, r.right)
+
+            end_x, end_y = clamp_to_vision(end_x, end_y)
+            return end_x, end_y
+
+        left_x, left_y = slide_or_stop(left_px, left_py, left_type)
+        right_x, right_y = slide_or_stop(right_px, right_py, right_type)
+
+        # safety flattening to floor (Seashell is stationary, so use its bottom as floor reference)
+        floor_y = self.rect.bottom
+        def flatten_to_floor(px, py):
+            if py <= floor_y:
+                return px, py
+            direction_sign = 1 if px >= center_x else -1
             return center_x + direction_sign * self.vision_range, floor_y
 
-        left_x, left_y = clip_and_flatten(left_x, left_y)
-        right_x, right_y = clip_and_flatten(right_x, right_y)
+        left_x, left_y = flatten_to_floor(left_x, left_y)
+        right_x, right_y = flatten_to_floor(right_x, right_y)
 
-        cone_points = [
-            (center_x, center_y),
-            (left_x, left_y),
-            (right_x, right_y)
-        ]
-        pygame.draw.polygon(win, (255, 0, 0, 100), cone_points, 2)
-        
+        # draw the two edge rays and small hit markers
+        pygame.draw.line(win, (255, 0, 0), (center_x, center_y), (int(left_x), int(left_y)), 2)
+        pygame.draw.line(win, (255, 0, 0), (center_x, center_y), (int(right_x), int(right_y)), 2)
+
+        pygame.draw.circle(win, (255, 0, 0), (int(left_x), int(left_y)), 3)
+        pygame.draw.circle(win, (255, 0, 0), (int(right_x), int(right_y)), 3)
+
+        # draw player line (green) stopping at nearest obstacle or RED constraint
         if self.player_in_vision:
-            pygame.draw.line(win, (0, 255, 0), (center_x, center_y), 
-                        (player.rect.centerx, player.rect.centery), 2)
+            px, py = player.rect.centerx, player.rect.centery
+            # Simple line-of-sight check for player
+            blocked = False
+            if obstacle_list:
+                for tile in obstacle_list:
+                    if tile.collide_rect.clipline((center_x, center_y), (px, py)):
+                        blocked = True
+                        break
+            if not blocked and constraint_rect_group:
+                for constraint in constraint_rect_group:
+                    if getattr(constraint, "colour", None) == RED:
+                        if constraint.rect.clipline((center_x, center_y), (px, py)):
+                            blocked = True
+                            break
+            
+            if blocked:
+                # Find nearest blocking point
+                nearest = None
+                nearest_dist = None
+                if obstacle_list:
+                    for tile in obstacle_list:
+                        clip = tile.collide_rect.clipline((center_x, center_y), (px, py))
+                        if not clip:
+                            continue
+                        ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                        d1 = math.hypot(ix1 - center_x, iy1 - center_y)
+                        d2 = math.hypot(ix2 - center_x, iy2 - center_y)
+                        if d1 <= d2:
+                            d = d1
+                            pt = (ix1, iy1)
+                        else:
+                            d = d2
+                            pt = (ix2, iy2)
+                        if nearest is None or d < nearest_dist:
+                            nearest = pt
+                            nearest_dist = d
+                if constraint_rect_group:
+                    for constraint in constraint_rect_group:
+                        if getattr(constraint, "colour", None) != RED:
+                            continue
+                        clip = constraint.rect.clipline((center_x, center_y), (px, py))
+                        if not clip:
+                            continue
+                        ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                        d1 = math.hypot(ix1 - center_x, iy1 - center_y)
+                        d2 = math.hypot(ix2 - center_x, iy2 - center_y)
+                        if d1 <= d2:
+                            d = d1
+                            pt = (ix1, iy1)
+                        else:
+                            d = d2
+                            pt = (ix2, iy2)
+                        if nearest is None or d < nearest_dist:
+                            nearest = pt
+                            nearest_dist = d
+                if nearest:
+                    pygame.draw.line(win, (0, 255, 0), (center_x, center_y), nearest, 2)
+            else:
+                pygame.draw.line(win, (0, 255, 0), (center_x, center_y), (px, py), 2)

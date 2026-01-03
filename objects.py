@@ -296,13 +296,6 @@ class Hazard(pygame.sprite.Sprite):
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
-        if self.collide(player):
-            if player.alive:
-                if self.hazard_type == "saw":
-                    player.get_hit(70, attacker=self)
-                elif self.hazard_type == "spikes":
-                    player.get_hit(50, attacker=self)
-
 
 class GameFlag(pygame.sprite.Sprite):
 

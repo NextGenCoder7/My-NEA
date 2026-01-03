@@ -119,7 +119,7 @@ def load_collidable_objects_sprite_sheets(width, height, object_type):         #
 
             sprites.append(pygame.transform.scale(surface, (scale_width, scale_height)))
 
-            if object_type == "hazard" and randint(0, 1) == 0:
+            if object_type == "hazard" and "saw" in image.lower() and randint(0, 1) == 0:     # I only want do this if the hazard is a saw, not a spike (saw.png)
                 all_sprites[image.replace(".png", "")] = flip(sprites)
             else:
                 all_sprites[image.replace(".png", "")] = sprites

@@ -82,6 +82,11 @@ class FierceTooth(Enemy):
 
         self.turn_cooldown = 0
         self.suppress_random_turns_timer = 0
+        self.last_chase_direction = None 
+        self.continue_chase_timer = 0  
+        self.continue_chase_duration = 300 
+        self.pursuing_purple_rect = None
+        self.delayed_turn_duration = 0
 
         self.was_hit_from_behind = False
         self.hit_anim_timer = 0
@@ -103,6 +108,118 @@ class FierceTooth(Enemy):
 
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
+
+    def handle_movement(self, obstacle_list, constraint_rect_group, player):
+        """
+        Handles AI movement logic (general default movement for all enemies).
+        """
+        self.velocity.x = 0
+        self.moving_left = False
+        self.moving_right = False
+        
+        self.state_timer += 1
+        if self.state_timer >= self.state_duration:
+            if self.state == "idle":
+                if not(self.suppress_random_turns_timer > 0) and random.random() < 0.5:
+                    self.direction = "left" if self.direction == "right" else "right"
+                self.state = "running"
+                self.state_duration = random.randint(60, 180)
+            else:
+                self.state = "idle"
+                self.state_duration = random.randint(60, 180)
+            self.state_timer = 0
+        
+        if self.state == "running":
+            if self.direction == "right":
+                self.velocity.x = self.speed
+                self.moving_right = True
+            else:
+                self.velocity.x = -self.speed
+                self.moving_left = True
+        
+        self.y_vel += self.GRAVITY
+        if self.y_vel > 10:
+            self.y_vel = 10
+        
+        dy = self.y_vel
+
+        self.position.y += dy
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):         
+                if dy > 0:  
+                    self.rect.bottom = tile.collide_rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+                    self.jump_count = 0
+                    self.on_ground = True
+                elif dy < 0:  
+                    self.rect.top = tile.collide_rect.bottom
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+
+        if player and self.collide(player):
+            if dy > 0 and self.rect.centery < player.rect.centery and self.rect.bottom >= player.rect.top:
+                self.rect.bottom = player.rect.top
+                self.position.y = self.rect.y
+                self.y_vel = -11
+                self.jump_count = 1
+                self.on_ground = False
+
+                if hasattr(player, "get_hit") and player.alive:
+                    player.get_hit(20, attacker=self)
+                    self.post_attack_recovery = True
+                    self.attack_recovery_timer = 0
+                    self.attack_cooldown = 60
+            elif dy < 0 and self.rect.centery > player.rect.centery and self.rect.top <= player.rect.bottom:
+                self.rect.top = player.rect.bottom
+                self.position.y = self.rect.y
+        
+        self.position.x += self.velocity.x
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):
+                if self.velocity.x > 0:  
+                    self.direction = "left"
+                    self.rect.right = tile.collide_rect.left
+                elif self.velocity.x < 0:  
+                    self.direction = "right"
+                    self.rect.left = tile.collide_rect.right
+
+                self.position.x = self.rect.x
+
+        if player and self.collide(player):
+            if self.velocity.x > 0:  
+                self.rect.right = player.rect.left
+            elif self.velocity.x < 0:  
+                self.rect.left = player.rect.right
+
+            self.position.x = self.rect.x
+
+        for constraint in constraint_rect_group:
+            if constraint.colour == RED:
+                if self.rect.colliderect(constraint.rect):
+                    if self.velocity.x > 0:  
+                        self.direction = "left"
+                        self.rect.right = constraint.rect.left
+                    elif self.velocity.x < 0:
+                        self.direction = "right"
+                        self.rect.left = constraint.rect.right
+
+                    self.position.x = self.rect.x
+
+        if self.rect.left + self.velocity.x <= 0:
+            self.direction = "right"
+            self.velocity.x = 0
+            self.position.x = 0
+        elif self.rect.right + self.velocity.x > WORLD_WIDTH:
+            self.direction = "left"
+            self.velocity.x = 0
+            self.position.x = WORLD_WIDTH - self.rect.width
 
     def _blocked_by_obstacle(self, start_pos, end_pos, obstacle_list, constraint_rect_group):
         if not obstacle_list and not constraint_rect_group:
@@ -442,6 +559,20 @@ class FierceTooth(Enemy):
         if vision_result == "shoot" and self.hit_anim_timer == 0 and self.shoot_cooldown == 0 and random.randint(1, 2) == 1:
             self.shoot(ammo_sprites, ammo_group)
 
+        def find_purple_rects():
+            if not constraint_rect_group:
+                return []
+
+            purple_rects = []
+            for constraint in constraint_rect_group:
+                if constraint.colour != PURPLE:
+                    continue
+
+                if abs(constraint.rect.centery - self.rect.centery) < 50:
+                    purple_rects.append(constraint)
+
+            return purple_rects
+
         if constraint_rect_group and self.alive:
             for constraint in constraint_rect_group:
                 if constraint.colour != PURPLE:
@@ -451,10 +582,11 @@ class FierceTooth(Enemy):
                     continue
 
                 if self.speed == 2:
-                    if random.randint(1, 2) == 2:
+                    if random.randint(1, 10) == 1:
                         if self.on_ground and self.jump_count < 1:
                             self.jump()
                             break
+
                 elif self.speed == 3:
                     if player:
                         dx = player.rect.centerx - self.rect.centerx
@@ -463,22 +595,100 @@ class FierceTooth(Enemy):
                         player_is_behind = False
 
                     if not player_is_behind and (not player or player.rect.y < self.rect.y):
-                        if self.on_ground and self.jump_count < 1:
+                        if self.on_ground and self.jump_count < 1 and self.smartmode:
                             self.jump()
                             break
 
         if self.smartmode and player:
             if previous_vision and not self.player_in_vision:
                 self.recently_lost_vision_timer = 30
-                if self.turn_cooldown == 0:
-                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
 
-                    dx = player.rect.centerx - self.rect.centerx
-                    player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-                    if not player_is_behind:
-                        self.suppress_random_turns_timer = max(self.suppress_random_turns_timer, self.SUPPRESS_TURN_DURATION)
+                purple_rects = find_purple_rects()
+
+                if self.on_ground and player.rect.y > self.rect.y:
+                    self.last_chase_direction = self.direction
+                    self.continue_chase_timer = self.continue_chase_duration
+                    self.suppress_random_turns_timer = max(self.suppress_random_turns_timer, self.continue_chase_duration)
+                else:
+                    if self.turn_cooldown == 0:
+                        self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+
+                        dx = player.rect.centerx - self.rect.centerx
+                        player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                        if not player_is_behind:
+                            self.suppress_random_turns_timer = max(self.suppress_random_turns_timer, self.SUPPRESS_TURN_DURATION)
+
             elif self.recently_lost_vision_timer > 0:
                 self.recently_lost_vision_timer -= 1
+
+                purple_rects = find_purple_rects()
+                if self.on_ground and player.on_ground and player.rect.y < self.rect.y and purple_rects:
+                    if self.direction == "right":
+                        far_purple = max(purple_rects, key=lambda r: r.rect.right)
+                        self.last_chase_direction = "right"
+                        self.pursuing_purple_rect = far_purple
+                    else:
+                        far_purple = min(purple_rects, key=lambda r: r.rect.left)
+                        self.last_chase_direction = "left"
+                        self.pursuing_purple_rect = far_purple
+
+                    self.continue_chase_timer = self.continue_chase_duration
+                    self.suppress_random_turns_timer = max(self.suppress_random_turns_timer, self.continue_chase_duration)
+
+            if self.continue_chase_timer > 0:
+                self.continue_chase_timer -= 1
+
+                if self.on_ground and player.rect.y > self.rect.y and self.last_chase_direction:
+                    self.direction = self.last_chase_direction
+                    self.speed = 3
+                    self.state = "running"
+                    self.state_timer = 0
+                    self.moving_left = (self.direction == "left")
+                    self.moving_right = (self.direction == "right")
+                elif self.pursuing_purple_rect and self.last_chase_direction:
+                    purple_rect = self.pursuing_purple_rect
+
+                    if self.last_chase_direction == "right":
+                        if self.rect.left >= purple_rect.rect.right:  
+                            self.direction = "left"
+                            if self.on_ground and self.jump_count < 1:
+                                self.jump()
+                            self.continue_chase_timer = 0
+                            self.pursuing_purple_rect = None
+                            self.last_chase_direction = None
+                            self.turn_cooldown = self.TURN_COOLDOWN
+                        else:
+                            self.direction = "right"
+                            self.speed = 3
+                            self.state = "running"
+                            self.state_timer = 0
+                            self.moving_left = False
+                            self.moving_right = True
+                    else:
+                        if self.rect.right <= purple_rect.rect.left:
+                            self.direction = "right"
+                            if self.on_ground and self.jump_count < 1:
+                                self.jump()
+                            self.continue_chase_timer = 0
+                            self.pursuing_purple_rect = None
+                            self.last_chase_direction = None
+                            self.turn_cooldown = self.TURN_COOLDOWN
+                        else:
+                            self.direction = "left"
+                            self.speed = 3
+                            self.state = "running"
+                            self.state_timer = 0
+                            self.moving_left = True
+                            self.moving_right = False
+                else:
+                    if self.rect.y == player.rect.y and self.last_chase_direction and not self.pursuing_purple_rect:
+                        self.direction = "left" if self.last_chase_direction == "right" else "right"
+                        self.last_chase_direction = None
+                        self.continue_chase_timer = 0
+                        self.turn_cooldown = self.TURN_COOLDOWN
+                    elif self.continue_chase_timer == 0:
+                        self.last_chase_direction = None
+                        self.pursuing_purple_rect = None
 
             if self.turn_cooldown > 0:
                 self.turn_cooldown -= 1
@@ -491,8 +701,9 @@ class FierceTooth(Enemy):
                     self.recheck_turn_timer -= 1
 
                     if self.recheck_turn_timer == 0 and not self.player_in_vision and self.turn_cooldown == 0:
-                        self.direction = "left" if self.direction == "right" else "right"
-                        self.turn_cooldown = self.TURN_COOLDOWN
+                        if self.continue_chase_timer == 0:
+                            self.direction = "left" if self.direction == "right" else "right"
+                            self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
@@ -511,54 +722,55 @@ class FierceTooth(Enemy):
             self.moving_left = (self.direction == "left")
             self.moving_right = (self.direction == "right")
 
-        if self.player_in_vision and not self.post_attack_recovery and self.hit_anim_timer == 0:
-            if self.grenade_flee_timer == 0:
-                self.speed = 3
-                if self.state == "idle":
+        if self.continue_chase_timer == 0:
+            if self.player_in_vision and not self.post_attack_recovery and self.hit_anim_timer == 0:
+                if self.grenade_flee_timer == 0:
+                    self.speed = 3
+                    if self.state == "idle":
+                        self.state = "running"
+                        self.state_timer = 0
+            elif self.post_attack_recovery:
+                self.speed = 0
+                self.state = "idle"
+                self.shoot_cooldown = 120
+                self.jump_timer = 0
+                if self.smartmode and player and self.recently_lost_vision_timer > 0:
+                    dx = player.rect.centerx - self.rect.centerx
+                    player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                    if player_is_behind:
+                        self.direction = "left" if self.direction == "right" else "right"
+                        self.recently_lost_vision_timer = 0
+                        self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                        self.turn_cooldown = self.TURN_COOLDOWN
+            elif self.hit_anim_timer > 0:      
+                self.attack_cooldown = 60
+                self.speed = 0
+                self.state = "idle"       
+                self.state_timer = 0
+                self.jump_timer = 0
+                if self.smartmode and player and self.recently_lost_vision_timer > 0:
+                    dx = player.rect.centerx - self.rect.centerx
+                    player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                    if player_is_behind:
+                        self.direction = "left" if self.direction == "right" else "right"
+                        self.recently_lost_vision_timer = 0
+                        self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                        self.turn_cooldown = self.TURN_COOLDOWN
+            elif self.smartmode and player and self.recently_lost_vision_timer > 0:
+                dx = player.rect.centerx - self.rect.centerx
+                player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                if player_is_behind and self.turn_cooldown == 0:
+                    self.direction = "left" if self.direction == "right" else "right"
+                    # self.jump()
+                    self.speed = 3
                     self.state = "running"
                     self.state_timer = 0
-        elif self.post_attack_recovery:
-            self.speed = 0
-            self.state = "idle"
-            self.shoot_cooldown = 120
-            self.jump_timer = 0
-            if self.smartmode and player and self.recently_lost_vision_timer > 0:
-                dx = player.rect.centerx - self.rect.centerx
-                player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-                if player_is_behind:
-                    self.direction = "left" if self.direction == "right" else "right"
                     self.recently_lost_vision_timer = 0
-                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION 
                     self.turn_cooldown = self.TURN_COOLDOWN
-        elif self.hit_anim_timer > 0:      
-            self.attack_cooldown = 60
-            self.speed = 0
-            self.state = "idle"       
-            self.state_timer = 0
-            self.jump_timer = 0
-            if self.smartmode and player and self.recently_lost_vision_timer > 0:
-                dx = player.rect.centerx - self.rect.centerx
-                player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-                if player_is_behind:
-                    self.direction = "left" if self.direction == "right" else "right"
-                    self.recently_lost_vision_timer = 0
-                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
-                    self.turn_cooldown = self.TURN_COOLDOWN
-        elif self.smartmode and player and self.recently_lost_vision_timer > 0:
-            dx = player.rect.centerx - self.rect.centerx
-            player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
-            if player_is_behind and self.turn_cooldown == 0:
-                self.direction = "left" if self.direction == "right" else "right"
-                self.jump()
-                self.speed = 3
-                self.state = "running"
-                self.state_timer = 0
-                self.recently_lost_vision_timer = 0
-                self.recheck_turn_timer = self.RECHECK_TURN_DURATION 
-                self.turn_cooldown = self.TURN_COOLDOWN
-        else:
-            if self.grenade_flee_timer == 0:
-                self.speed = 2
+            else:
+                if self.grenade_flee_timer == 0:
+                    self.speed = 2
 
         if player and self.attacking and self.attack_cooldown == 0 and self.hit_anim_timer == 0 and self.y_vel < 1:
             dx = player.rect.centerx - self.rect.centerx
@@ -574,22 +786,17 @@ class FierceTooth(Enemy):
                 self.attack_cooldown = 60
 
         if player and self.collide(player):   
-            player_center_y = player.rect.centery
-            enemy_center_y = self.rect.centery
-            height_difference = abs(player_center_y - enemy_center_y)
+            if self.smartmode and self.grenade_flee_timer == 0:
+                dx = player.rect.centerx - self.rect.centerx
+                player_is_behind = (self.direction == "right" and dx <= -10) or \
+                            (self.direction == "left" and dx >= 10)
 
-            if height_difference < 10:
-                if self.smartmode and self.grenade_flee_timer == 0:
-                    dx = player.rect.centerx - self.rect.centerx
-                    player_is_behind = (self.direction == "right" and dx <= -10) or \
-                                (self.direction == "left" and dx >= 10)
-
-                    if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
-                        self.direction = "left" if self.direction == "right" else "right"
-                        self.attacking = True
-                        self.attack_cooldown = 0
-                        self.recheck_turn_timer = self.RECHECK_TURN_DURATION
-                        self.turn_cooldown = self.TURN_COOLDOWN
+                if player_is_behind and not self.post_attack_recovery and self.hit_anim_timer == 0 and self.turn_cooldown == 0:
+                    self.direction = "left" if self.direction == "right" else "right"
+                    self.attacking = True
+                    self.attack_cooldown = 0
+                    self.recheck_turn_timer = self.RECHECK_TURN_DURATION
+                    self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.post_attack_recovery:
             self.attack_recovery_timer += 1
@@ -608,8 +815,8 @@ class FierceTooth(Enemy):
           - Rays are clipped to the nearest obstacle intersection.
           - RED constraint rects immediately block vision: as soon as a ray touches a RED
             constraint rect it stops there (no sliding along edges).
-          - For non-RED obstacle hits downward rays slide along platform tops, upward rays stop
-            at platform undersides. Sliding is now clamped by RED constraint rects so a ray
+          - For non-RED obstacle hits, rays slide along the top edge of obstacles/ground
+            until vision range. Sliding is clamped by RED constraint rects so a ray
             cannot slide past a RED constraint.
         """
         if not self.alive:
@@ -646,28 +853,7 @@ class FierceTooth(Enemy):
             nearest_dist = None
             nearest_type = None
 
-            # check obstacle tiles first
-            if obstacle_list:
-                for tile in obstacle_list:
-                    clip = tile.collide_rect.clipline((sx, sy), (ex, ey))
-                    if not clip:
-                        continue
-                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
-                    d1 = math.hypot(ix1 - sx, iy1 - sy)
-                    d2 = math.hypot(ix2 - sx, iy2 - sy)
-                    if d1 <= d2:
-                        d = d1
-                        px, py = ix1, iy1
-                    else:
-                        d = d2
-                        px, py = ix2, iy2
-
-                    if nearest is None or d < nearest_dist:
-                        nearest = (px, py)
-                        nearest_dist = d
-                        nearest_type = 'obstacle'
-
-            # check RED constraint rects and treat them as stronger blockers
+            # check RED constraint rects first (they take absolute precedence)
             if constraint_rect_group:
                 for constraint in constraint_rect_group:
                     if getattr(constraint, "colour", None) != RED:
@@ -685,11 +871,32 @@ class FierceTooth(Enemy):
                         d = d2
                         px, py = ix2, iy2
 
-                    # prefer constraint if it's closer (or if prior nearest wasn't constraint)
-                    if nearest is None or d < nearest_dist - 1e-9 or nearest_type != 'constraint':
+                    if nearest is None or d < nearest_dist:
                         nearest = (px, py)
                         nearest_dist = d
                         nearest_type = 'constraint'
+
+            # check obstacle tiles (only if no constraint was found or constraint is further)
+            if obstacle_list:
+                for tile in obstacle_list:
+                    clip = tile.collide_rect.clipline((sx, sy), (ex, ey))
+                    if not clip:
+                        continue
+                    ix1, iy1, ix2, iy2 = _normalise_clip(clip)
+                    d1 = math.hypot(ix1 - sx, iy1 - sy)
+                    d2 = math.hypot(ix2 - sx, iy2 - sy)
+                    if d1 <= d2:
+                        d = d1
+                        px, py = ix1, iy1
+                    else:
+                        d = d2
+                        px, py = ix2, iy2
+
+                    # only use obstacle if no constraint found, or if obstacle is closer
+                    if nearest_type != 'constraint' and (nearest is None or d < nearest_dist):
+                        nearest = (px, py)
+                        nearest_dist = d
+                        nearest_type = 'obstacle'
 
             if nearest is not None:
                 return nearest[0], nearest[1], nearest_type
@@ -768,12 +975,13 @@ class FierceTooth(Enemy):
             if hit_type == 'constraint':
                 return px, py
 
-            # slide along edge for non-constraint hits
-            edge = "bottom" if py < center_y else "top"
-            seg = find_edge_segment(px, py, edge)
+            # For non-constraint hits, always slide along the top edge of obstacles/ground
+            # This works for both upward and downward rays - we slide along walkable surfaces
+            seg = find_edge_segment(px, py, "top")
             if not seg:
                 return px, py
             a, b, edge_y = seg
+            # Determine slide direction based on ray direction
             end_x = b if px >= center_x else a
             end_y = edge_y
 

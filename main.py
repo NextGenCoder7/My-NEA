@@ -89,15 +89,15 @@ class World:
                             self.obstacle_group.add(obstacle)
                     elif tile >= 15 and tile <= 16:    # hazard tiles, saws and spikes
                         if tile == 15:
-                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 5, self.HAZARD_SPRITES, tile)
+                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 8, self.HAZARD_SPRITES, tile)
                         else:
-                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 20, self.HAZARD_SPRITES, tile)
+                            hazard = Hazard(x * TILE_SIZE, y * TILE_SIZE - 23, self.HAZARD_SPRITES, tile)
                         self.hazard_group.add(hazard)
                     elif tile == 17 or tile == 28:     # flag tiles, level end flag and checkpoint flags
                         if tile == 17:
-                            self.level_end_flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 30, self.FLAG_SPRITES, tile)
+                            self.level_end_flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 33, self.FLAG_SPRITES, tile)
                         elif tile == 28:
-                            flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 30, self.FLAG_SPRITES, tile)
+                            flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 33, self.FLAG_SPRITES, tile)
                             self.checkpoint_group.add(flag)
                     elif tile == 18:     # player tile
                         PLAYER_SPRITES = load_player_sprite_sheets('Main Characters', '2', 32, 32, direction=True)                       
@@ -219,12 +219,12 @@ class World:
         for enemy in self.fiercetooth_group:
             enemy.draw(win)
             enemy.draw_health_bar(win)
-            enemy.draw_vision_cone(win, self.player, self.obstacle_group, self.constraint_rect_group)   # for debugging enemy vision
+            # enemy.draw_vision_cone(win, self.player, self.obstacle_group, self.constraint_rect_group)   # for debugging enemy vision
 
         for enemy in self.seashell_group:
             enemy.draw(win)
             enemy.draw_health_bar(win)
-            # enemy.draw_vision_cone(win, player)   # for debugging enemy vision
+            # enemy.draw_vision_cone(win, self.player, self.obstacle_group, self.constraint_rect_group)   # for debugging enemy vision
 
         for enemy in self.pink_star_group:
             enemy.draw(win)
@@ -327,7 +327,7 @@ def main(win):
         
         if player.alive:
             player.update()
-            player.handle_movement(keys, obstacle_list, enemies)      
+            player.handle_movement(keys, obstacle_list, hazard_group, enemies)      
             player.update_sprite()
 
             if player.shoot:

@@ -42,6 +42,7 @@ class Player(pygame.sprite.Sprite):
     """
 
     ANIMATION_DELAY = 3
+    TERMINAL_VEL = 10
     HEALTH_BAR_DURATION = STAMINA_BAR_DURATION = NUM_AMMO_DURATION = NUM_GRENADES_DURATION = 180
     GRAVITY = 0.7  
     HIT_ANIM_DURATION = 120
@@ -106,7 +107,7 @@ class Player(pygame.sprite.Sprite):
         self.in_danger_zone = False
         self.is_player = True
 
-    def handle_movement(self, keys, obstacle_list, enemies_group=None):
+    def handle_movement(self, keys, obstacle_list, hazard_group, enemies_group):
         """
         Handles the player movement based on keyboard input and collision with enemies.
 
@@ -151,8 +152,8 @@ class Player(pygame.sprite.Sprite):
             self.is_sprinting = False
         
         self.y_vel += self.GRAVITY
-        if self.y_vel > 10:
-            self.y_vel = 10
+        if self.y_vel > self.TERMINAL_VEL:
+            self.y_vel = self.TERMINAL_VEL
 
         dy = self.y_vel
         
@@ -179,6 +180,21 @@ class Player(pygame.sprite.Sprite):
                     self.position.y = self.rect.y
                     self.y_vel = 0
 
+        for hazard in hazard_group:
+            if self.collide(hazard):
+                if dy > 0 and self.rect.centery < hazard.rect.centery and self.rect.bottom >= hazard.rect.top:  
+                    self.rect.bottom = hazard.rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = -8
+                    self.jump_count = 1  
+                    self.on_ground = False
+                    
+                    if self.hit_anim_timer == 0:
+                        if hazard.hazard_type == "saw":
+                            self.get_hit(70, attacker=hazard)
+                        elif hazard.hazard_type == "spikes":
+                            self.get_hit(50, attacker=hazard)
+
         if enemies_group:
             for enemy in enemies_group:
                 if enemy.alive and self.collide(enemy):   
@@ -186,7 +202,8 @@ class Player(pygame.sprite.Sprite):
                         self.rect.bottom = enemy.rect.top
                         self.position.y = self.rect.y
                         self.y_vel = -11
-                        self.jump_count = 1                       
+                        self.jump_count = 1     
+                        self.on_ground = False
                         
                         in_recovery = False
                         if hasattr(enemy, "post_bite_recovery"):
@@ -211,6 +228,54 @@ class Player(pygame.sprite.Sprite):
                 elif self.velocity.x < 0:  
                     self.rect.left = tile.collide_rect.right
                 self.position.x = self.rect.x
+
+        for hazard in hazard_group:
+            if self.collide(hazard):
+                KNOCKBACK = 15
+                SMALL_JUMP_VEL = -7
+
+                if self.velocity.x > 0:  
+                    self.rect.right = hazard.rect.left
+                    if self.hit_anim_timer == 0:
+                        self.position.x = self.rect.x - KNOCKBACK
+                        self.y_vel = SMALL_JUMP_VEL
+                        self.jump_count = 1
+                        self.on_ground = False
+
+                        if hazard.hazard_type == "saw":
+                            self.get_hit(70, attacker=hazard)
+                        elif hazard.hazard_type == "spikes":
+                            self.get_hit(50, attacker=hazard)
+                elif self.velocity.x < 0:  
+                    self.rect.left = hazard.rect.right
+                    if self.hit_anim_timer == 0:
+                        self.position.x = self.rect.x + KNOCKBACK
+                        self.y_vel = SMALL_JUMP_VEL
+                        self.jump_count = 1
+                        self.on_ground = False
+
+                        if hazard.hazard_type == "saw":
+                            self.get_hit(70, attacker=hazard)
+                        elif hazard.hazard_type == "spikes":
+                            self.get_hit(50, attacker=hazard)
+                else:
+                    if self.rect.centerx < hazard.rect.centerx:
+                        self.position.x = self.rect.x - KNOCKBACK
+                    else:
+                        self.position.x = self.rect.x + KNOCKBACK
+                 
+                    self.y_vel = SMALL_JUMP_VEL
+                    self.jump_count = 1
+                    self.on_ground = False
+
+                    if self.hit_anim_timer == 0:
+                        if hazard.hazard_type == "saw":
+                            self.get_hit(70, attacker=hazard)
+                        elif hazard.hazard_type == "spikes":
+                            self.get_hit(50, attacker=hazard)
+
+                self.rect.topleft = (int(self.position.x), int(self.position.y))
+                self.mask = pygame.mask.from_surface(self.img)
 
         if enemies_group:
             for enemy in enemies_group:
@@ -265,12 +330,19 @@ class Player(pygame.sprite.Sprite):
         Supports single and double jumps.
         """
         if self.jump_count < 2:
-            if self.jump_count == 0:
-                self.y_vel = -14
+            if not self.in_danger_zone:
+                if self.jump_count == 0:
+                    self.y_vel = -14
+                else:
+                    self.y_vel = -8
             else:
-                self.y_vel = -8
+                if self.jump_count == 0:
+                    self.y_vel = -8
+                else:
+                    self.y_vel = -3
 
             self.jump_count += 1
+            self.on_ground = False
 
     def draw(self, win):
         """
