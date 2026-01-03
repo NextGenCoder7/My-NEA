@@ -1,6 +1,8 @@
 import pygame
 from enemies import Enemy
 import math
+import random
+from constants import RED, PURPLE
 
 
 class PinkStar(Enemy):
@@ -36,11 +38,14 @@ class PinkStar(Enemy):
             health (int): Starting health.
         """
         super().__init__(x, y, x_vel, sprites, health)
+        self.death_fall_speed_cap = 1
+        self.death_handled = False
 
         self.chasing_player = False
+        self.path = []
 
         self.attacking = False
-        self.attack_range = 40
+        self.attack_range = 50
         self.attack_cooldown = 0
         self.attack_recovery_timer = 0
         self.attack_recovery_duration = 350
@@ -49,6 +54,139 @@ class PinkStar(Enemy):
         self.hit_anim_timer = 0
 
         self.enemy_type = "Pink Star"
+
+    def handle_death(self):
+        self.y_vel += self.GRAVITY
+        if self.y_vel > self.death_fall_speed_cap:
+            self.y_vel = self.death_fall_speed_cap
+
+        self.velocity.y += self.y_vel
+
+        if self.rect.bottom + self.velocity.y > 400:
+            self.velocity.y = 400 - self.rect.bottom
+            self.jump_count = 0
+            self.y_vel = 0
+            self.death_handled = True
+
+        self.position += self.velocity
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+
+    def handle_movement(self, obstacle_list, constraint_rect_group, player):
+        """
+        Handles AI movement logic (specific movement for Pink Star enemies).
+        """
+        self.velocity.x = 0
+        self.moving_left = False
+        self.moving_right = False
+
+        self.state_timer += 1
+        if self.state_timer >= self.state_duration:
+            if self.state == "idle":
+                if random.random() < 0.5:
+                    self.direction = "left" if self.direction == "right" else "right"
+                self.state = "running"
+                self.state_duration = random.randint(60, 180)
+            else:
+                self.state = "idle"
+                self.state_duration = random.randint(60, 180)
+            self.state_timer = 0
+
+        if self.state == "running":
+            if self.direction == "right":
+                self.velocity.x = self.speed
+                self.moving_right = True
+            else:
+                self.velocity.x = -self.speed
+                self.moving_left = True
+        
+        self.y_vel += self.GRAVITY
+        if self.y_vel > 10:
+            self.y_vel = 10
+        
+        dy = self.y_vel
+
+        self.position.y += dy
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):         
+                if dy > 0:  
+                    self.rect.bottom = tile.collide_rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+                    self.jump_count = 0
+                    self.on_ground = True
+                elif dy < 0:  
+                    self.rect.top = tile.collide_rect.bottom
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+
+        if player and self.collide(player):
+            if dy > 0 and self.rect.centery < player.rect.centery and self.rect.bottom >= player.rect.top:
+                self.rect.bottom = player.rect.top
+                self.position.y = self.rect.y
+                self.y_vel = -7
+                self.jump_count = 1
+                self.on_ground = False
+
+                if hasattr(player, "get_hit") and player.alive:
+                    player.get_hit(50, attacker=self)
+                    self.post_attack_recovery = True
+                    self.attack_recovery_timer = 0
+                    self.attack_cooldown = 150
+            elif dy < 0 and self.rect.centery > player.rect.centery and self.rect.top <= player.rect.bottom:
+                self.rect.top = player.rect.bottom
+                self.position.y = self.rect.y
+
+        for constraint in constraint_rect_group:
+            if constraint.colour == RED:
+                if self.rect.colliderect(constraint.rect):
+                    if dy > 0:  
+                        self.rect.bottom = constraint.rect.top
+                        self.position.y = self.rect.y
+                        self.y_vel = 0
+                        self.jump_count = 0
+                        self.on_ground = True
+                    elif dy < 0:  
+                        self.rect.top = constraint.rect.bottom
+                        self.position.y = self.rect.y
+                        self.y_vel = 0
+
+        self.position.x += self.velocity.x
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):
+                if self.velocity.x > 0:  
+                    self.direction = "left"
+                    self.rect.right = tile.collide_rect.left
+                elif self.velocity.x < 0:  
+                    self.direction = "right"
+                    self.rect.left = tile.collide_rect.right
+
+                self.position.x = self.rect.x
+
+        if player and self.collide(player):
+            if self.velocity.x > 0:  
+                self.rect.right = player.rect.left
+            elif self.velocity.x < 0:  
+                self.rect.left = player.rect.right
+
+            self.position.x = self.rect.x
+
+        for constraint in constraint_rect_group:
+            if constraint.colour == RED:
+                if self.rect.colliderect(constraint.rect):
+                    if self.velocity.x > 0:  
+                        self.direction = "left"
+                        self.rect.right = constraint.rect.left
+                    elif self.velocity.x < 0:
+                        self.direction = "right"
+                        self.rect.left = constraint.rect.right
+
+                    self.position.x = self.rect.x
 
     def draw(self, win):
         """
@@ -88,7 +226,7 @@ class PinkStar(Enemy):
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
-                    elif self.y_vel > 0:
+                    elif self.y_vel > 0 and not self.on_ground:
                         sprite_sheet = "Fall"
                     elif self.moving_left or self.moving_right:
                         sprite_sheet = "Run"
@@ -99,7 +237,7 @@ class PinkStar(Enemy):
                     sprite_sheet = "Hit"
                 elif self.y_vel < 0:
                     sprite_sheet = "Jump"
-                elif self.y_vel > 0:
+                elif self.y_vel > 0 and not self.on_ground:
                     sprite_sheet = "Fall"
                 elif self.moving_left or self.moving_right:
                     sprite_sheet = "Run"
@@ -126,7 +264,7 @@ class PinkStar(Enemy):
         
         self.animation_count += 1
 
-    def update(self, player):
+    def update(self, player, constraint_rect_group):
         """
         Update the enemy's state, which includes chasing and attacking the player.
         Also handles cooldowns, collisions.
@@ -140,35 +278,30 @@ class PinkStar(Enemy):
 
         self.attacking = False
 
-        # for now I'll just make it so that if the player is within a certain distance, it starts "chasing" (will adjust this later)
-        # will overwrite handle movement function from Enemy class for movement on path from A* algorithm
-        dx = player.rect.centerx - self.rect.centerx
-        dy = player.rect.centery - self.rect.centery
-        distance = math.hypot(dx, dy)
+        if constraint_rect_group and self.alive:
+            for constraint in constraint_rect_group:
+                if constraint.colour != PURPLE:
+                    continue
 
-        if distance <= self.attack_range:
-            if self.direction == "left" and dx < 0:
-                self.attacking = True
-            elif self.direction == "right" and dx > 0:
-                self.attacking = True
-        elif distance <= 170 and not self.post_attack_recovery and self.hit_anim_timer == 0:
-            self.chasing_player = True
-        else:
-            self.chasing_player = False
+                if not self.rect.colliderect(constraint.rect):
+                    continue
+                else:
+                    if self.direction == "right":
+                        if self.rect.right != constraint.rect.right:
+                            continue
+                    else:
+                        if self.rect.left != constraint.rect.left:
+                            continue
+
+                    if self.on_ground and self.jump_count < 1: 
+                        self.speed = 4
+                        self.jump()
+                        break
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
-
-        if player and self.collide(player):
-            if self.y_vel > 0 and self.rect.centery < player.rect.centery and self.rect.bottom >= player.rect.top:
-                self.rect.bottom = player.rect.top
-                self.position.y = self.rect.y
-                self.y_vel = 0
-                self.jump_count = 0
-                if hasattr(player, "get_hit"):
-                    player.get_hit(50, attacker=self)
         
         if self.chasing_player and not self.post_attack_recovery and self.hit_anim_timer == 0:
             self.speed = 4
@@ -180,7 +313,7 @@ class PinkStar(Enemy):
              self.state = "idle"
              self.jump_timer = 0
         elif self.hit_anim_timer > 0:
-            self.attack_cooldown = 100
+            self.attack_cooldown = 150
             self.speed = 0
             self.state = "idle"       
             self.state_timer = 0
@@ -199,7 +332,7 @@ class PinkStar(Enemy):
                     self.attacking = False
                     self.post_attack_recovery = True
                     self.attack_recovery_timer = 0
-                    self.attack_cooldown = 100
+                    self.attack_cooldown = 150
 
         if self.post_attack_recovery:
             self.attack_recovery_timer += 1

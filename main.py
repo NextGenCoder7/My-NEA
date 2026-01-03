@@ -109,7 +109,7 @@ class World:
                         print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
-                        pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 500)
+                        pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 100)
                         self.pink_star_group.add(pink_star_enemy)
                     elif tile == 21:     # SeashellPearl enemy tile
                         SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
@@ -247,7 +247,6 @@ class World:
         for obj, attr, old_x in shifted:
             rect = getattr(obj, attr)
             rect.x = old_x
-        # do I not need to restore the collide_rects here as well for the obstacles?
 
 
 def main(win):
@@ -319,11 +318,14 @@ def main(win):
                     enemy.fire(PEARL_SPRITES, pearl_group)
                     enemy.was_hit_from_behind = False
 
-        # for enemy in pink_star_group:
-        #     if enemy.alive:
-        #         enemy.update(player)   
-        #         enemy.handle_movement(obstacle_list, constraint_rect_group)
-        #         enemy.update_sprite(player)
+        for enemy in pink_star_group:
+            if enemy.alive:
+                enemy.update(player, constraint_rect_group)   
+                enemy.handle_movement(obstacle_list, constraint_rect_group, player)
+                enemy.update_sprite(player)
+            else:
+                if not enemy.death_handled:
+                   enemy.handle_death()
         
         if player.alive:
             player.update()

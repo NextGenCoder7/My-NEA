@@ -111,7 +111,7 @@ class FierceTooth(Enemy):
 
     def handle_movement(self, obstacle_list, constraint_rect_group, player):
         """
-        Handles AI movement logic (general default movement for all enemies).
+        Handles AI movement logic (specific movement for Fiercetooth enemies).
         """
         self.velocity.x = 0
         self.moving_left = False

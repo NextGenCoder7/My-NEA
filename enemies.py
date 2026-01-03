@@ -175,7 +175,7 @@ class Enemy(pygame.sprite.Sprite):
             if self.enemy_type == "Fiercetooth":
                 self.y_vel = -14
             elif self.enemy_type == "Pink Star":
-                self.y_vel = -8
+                self.y_vel = -13
 
             self.jump_count += 1
             self.on_ground = False
