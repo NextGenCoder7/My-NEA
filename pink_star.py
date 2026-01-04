@@ -213,7 +213,6 @@ class PinkStar(Enemy):
             closed_set.add(current_node.position)
             
             if current_node.position == goal_node.position:
-                # Reconstruct path
                 path = []
                 while current_node:
                     path.append(current_node.position)
@@ -282,7 +281,6 @@ class PinkStar(Enemy):
                     purple_rects.append(constraint)
 
         if self.chasing_player:
-            # Follow path if we have one
             if self.path and self.current_path_index < len(self.path):
                 node_center_pos = self.path[self.current_path_index]
                 target_x, target_y = self.get_node_edge_coord(node_center_pos, purple_rects, self.direction)
@@ -290,7 +288,7 @@ class PinkStar(Enemy):
 
                 dist_to_target = math.hypot(self.rect.centerx - target_x, self.rect.centery - target_y)
 
-                if dist_to_target < 10:
+                if dist_to_target < 5:
                     self.current_path_index += 1
                     if self.current_path_index >= len(self.path):
                         self.path = []
@@ -299,7 +297,6 @@ class PinkStar(Enemy):
                     dx = target_x - self.rect.centerx
                     dy = target_y - self.rect.centery
 
-                    # drive horizontal movement toward target
                     if abs(dx) > 3:
                         if dx > 0:
                             self.velocity.x = self.speed
@@ -312,11 +309,9 @@ class PinkStar(Enemy):
                         self.state = "running"
                         self.state_timer = 0
 
-                    # If target is not a node and player is clearly above, replan instead of head-banging
                     if not target_is_node and dy < -12 and abs(dx) < 6 and self.on_ground:
                         self.path = []
                         self.current_path_index = 0
-                        # encourage immediate replan next update
                         self.path_update_timer = self.path_update_interval
                     elif dy < -12 and self.on_ground and self.jump_count < 1:
                         self.jump()
