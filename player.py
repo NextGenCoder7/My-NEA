@@ -107,6 +107,8 @@ class Player(pygame.sprite.Sprite):
         self.current_level = 1
         self.world_width = WORLD_WIDTH
         self.last_checkpoint = (x, y)
+        self.collected_ids = set()
+        self.killed_enemy_ids = set()
         self.in_danger_zone = False
         self.death_timer = 0
         self.death_duration = 180
@@ -130,7 +132,9 @@ class Player(pygame.sprite.Sprite):
 
         Args:
             keys (Iterable): Collection of boolean values representing the state of keyboard keys.
-            enemies_group (Group, optional): Pygame Group containing enemy objects for collision detection.
+            obstacle_list (Group): Pygame Group containing obstacles for collision detection.
+            hazard_group (Group): Pygame Group containing hazards for collision detection.
+            enemies_group (Group): Pygame Group containing enemy objects for collision detection.
         """
         shift_pressed = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
 

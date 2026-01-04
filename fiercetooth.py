@@ -58,7 +58,7 @@ class FierceTooth(Enemy):
         """
         super().__init__(x, y, x_vel, sprites, health)
 
-        self.death_fall_speed_cap = 1
+        self.death_fall_speed_cap = 10
         self.death_handled = False
 
         self.vision_range = 350

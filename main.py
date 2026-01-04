@@ -10,9 +10,12 @@ from constraint_rects import ConstraintRect, compute_danger_zones
 from button import Button
 from level import Level
 from utils import load_level, load_tile_images
+from database import init_db, load_level_progress, save_level_progress, reset_level_progress, update_totals, get_player_totals, get_level_progress
 
 pygame.init()
 pygame.mixer.init()
+
+init_db()
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption(TITLE)
@@ -175,19 +178,23 @@ class World:
                     elif tile == 19:    # FierceTooth enemy tile
                         FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
+                        fiercetooth_enemy.obj_id = f"enemy:ft:{x}:{y}"
                         self.fiercetooth_group.add(fiercetooth_enemy)               
                         # print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
                         pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 100)
+                        pink_star_enemy.obj_id = f"enemy:ps:{x}:{y}"
                         self.pink_star_group.add(pink_star_enemy)
                     elif tile == 21:     # SeashellPearl enemy tile
                         SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
-                        seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True)  
+                        seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True) 
+                        seashell_pearl_enemy.obj_id = f"enemy:ss:{x}:{y}" 
                         self.seashell_group.add(seashell_pearl_enemy)               
                         # print(f"[WORLD] Spawn Seashell tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile >= 22 and tile <= 24:    # collectible gem tiles: player_ammo, player_health, coins
                         collectible_gem = CollectibleGem(x * TILE_SIZE, y * TILE_SIZE, self.GEM_SPRITES, tile)
+                        collectible_gem.obj_id = f"gem:{x}:{y}:{tile}"
                         self.collectible_gem_group.add(collectible_gem)
                     elif tile == 25 or tile == 26 or tile == 29:    # constraint rect tiles: red, blue, orange (for enemies)
                         constraint_rect = ConstraintRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, tile)
@@ -196,6 +203,7 @@ class World:
                         grenade_box_img = load_image('28', 'Level Editor Tiles')
                         grenade_box_img = pygame.transform.scale(grenade_box_img, (TILE_SIZE // 2, TILE_SIZE // 2))
                         grenade_box = GrenadeBox(x * TILE_SIZE, y * TILE_SIZE, grenade_box_img)
+                        grenade_box.obj_id = f"gbox:{x}:{y}"
                         self.grenade_box_group.add(grenade_box)
 
         self.danger_zones = compute_danger_zones(self.constraint_rect_group)
@@ -393,7 +401,42 @@ def draw_levels_page(win, bg1):
     bg1 = pygame.transform.scale(bg1, (WIDTH, HEIGHT))
     win.blit(bg1, (0, 0))
 
-    draw_text("Levels Page", 'Comicsans', 30, CYAN, win, 1, 7, center_x=True)
+    draw_text("Levels", 'Comicsans', 30, CYAN, win, 1, 7, center_x=True)
+
+
+def draw_stats_page(win):
+    """
+    Render total stats and latest per-level progress.
+    """
+
+    win.fill((20, 30, 40))
+
+    totals = get_player_totals()
+    level_rows = get_level_progress()
+
+    y = 30
+    draw_text("Stats", 'Comicsans', 42, WHITE, win, 1, y, center_x=True)
+    y += 50
+
+    draw_text("Totals", 'Comicsans', 30, CYAN, win, 20, y)
+    y += 32
+    draw_text(f"Coins: {totals['total_coins']}", 'Comicsans', 24, WHITE, win, 40, y); y += 26
+    draw_text(f"Enemies defeated: {totals['total_enemies']}", 'Comicsans', 24, WHITE, win, 40, y); y += 26
+    draw_text(f"Deaths: {totals['total_deaths']}", 'Comicsans', 24, WHITE, win, 40, y); y += 26
+    draw_text(f"Time played (s): {int(totals['total_time'])}", 'Comicsans', 24, WHITE, win, 40, y); y += 40
+
+    draw_text("Per-level (latest saved)", 'Comicsans', 30, CYAN, win, 20, y)
+    y += 32
+    if not level_rows:
+        draw_text("No in-progress levels.", 'Comicsans', 22, WHITE, win, 40, y)
+    else:
+        for row in level_rows:
+            if y > HEIGHT - 30:
+                break  
+            draw_text(f"Level {row['level_id']}", 'Comicsans', 26, WHITE, win, 40, y); y += 24
+            draw_text(f"  Coins: {row['coin_count']}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
+            draw_text(f"  Enemies defeated: {len(row['killed_enemy_ids'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
+            draw_text(f"  Time (s): {int(row['time_taken'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
 
 
 def start_level(level_num):
@@ -410,6 +453,53 @@ def start_level(level_num):
     camera = Camera(WIDTH, level_world_width, SCROLL_AREA_WIDTH)
     enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group)
     level_info = Level(player, world_data)
+    return (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+            fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+            collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+            checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+            camera, enemies)
+
+
+def apply_saved_progress(selected_level, world, level_info, obstacle_list, player, level_end_flag,
+                         player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group,
+                         pink_star_group, seashell_group, pearl_group, collectible_gem_group, hazard_group,
+                         constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group,
+                         GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES, camera, enemies):
+    progress = load_level_progress(selected_level)
+
+    player.coin_count = progress["coin_count"]
+    if progress["ammo"] is not None:
+        player.ammo = progress["ammo"]
+    if progress["grenades"] is not None:
+        player.grenades = progress["grenades"]
+    if progress["health"] is not None:
+        player.health = progress["health"]
+        player.max_health = max(player.max_health, player.health)
+
+    if progress["last_checkpoint"]:
+        player.last_checkpoint = progress["last_checkpoint"]
+        player.position.x, player.position.y = progress["last_checkpoint"]
+        player.rect.topleft = (int(player.position.x), int(player.position.y))
+        player.mask = pygame.mask.from_surface(player.img)
+
+    player.collected_ids = set(progress["collected_ids"])
+    level_info.collected_ids = set(progress["collected_ids"])
+    level_info.killed_enemy_ids = set(progress["killed_enemy_ids"])
+
+    for gem in list(collectible_gem_group):
+        if getattr(gem, "obj_id", None) in level_info.collected_ids:
+            gem.kill()
+    for gbox in list(grenade_box_group):
+        if getattr(gbox, "obj_id", None) in level_info.collected_ids:
+            gbox.kill()
+
+    for enemy in list(fiercetooth_group) + list(seashell_group) + list(pink_star_group):
+        if getattr(enemy, "obj_id", None) in level_info.killed_enemy_ids:
+            enemy.kill()
+
+    if progress.get("reached_end"):
+        player.reached_level_end = True
+
     return (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
             fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
             collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
@@ -529,18 +619,44 @@ def main(win):
                 if btn.draw(win):
                     fader.fade_out(win, clock)
                     selected_level = idx
+
+                    progress = load_level_progress(selected_level)
+                    if progress.get("reached_end"):
+                        reset_level_progress(selected_level)
+
                     (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
                     fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
                     collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
                     checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
                     camera, enemies) = start_level(selected_level)
+
+                    (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                    camera, enemies) = apply_saved_progress(
+                        selected_level, world, level_info, obstacle_list, player, level_end_flag,
+                        player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group,
+                        pink_star_group, seashell_group, pearl_group, collectible_gem_group, hazard_group,
+                        constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group,
+                        GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES, camera, enemies)
+
                     playing_level = True
                     levels_page = False
                     world.draw_world(bg1, camera, win)
                     fader.fade_in(win, clock)
             
         elif stats_page:
-            pass
+            draw_stats_page(win)
+
+            if back_btn.draw(win):
+                fader.fade_out(win, clock)
+                stats_page = False
+                main_menu = True
+                draw_main_menu(win)
+                fader.fade_in(win, clock)
+
+            
         elif playing_level:
             keys = pygame.key.get_pressed()
 
@@ -564,7 +680,9 @@ def main(win):
                         enemy.was_hit_from_behind = False
                 else:
                     if not enemy.death_handled:
-                        enemy.handle_death()
+                        enemy.handle_death(obstacle_list)
+                        if hasattr(enemy, "obj_id") and hasattr(level_info, "killed_enemy_ids"): 
+                            level_info.killed_enemy_ids.add(enemy.obj_id)
 
             for enemy in seashell_group:
                 if enemy.alive:
@@ -578,6 +696,9 @@ def main(win):
                     if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
                         enemy.fire(PEARL_SPRITES, pearl_group)
                         enemy.was_hit_from_behind = False
+                else:   # doesn't need a handle death method since it never moves from its spot anyway
+                    if hasattr(enemy, "obj_id") and hasattr(level_info, "killed_enemy_ids"):
+                        level_info.killed_enemy_ids.add(enemy.obj_id)
 
             for enemy in pink_star_group:
                 if enemy.alive:
@@ -586,7 +707,9 @@ def main(win):
                     enemy.update_sprite(player)
                 else:
                     if not enemy.death_handled:
-                       enemy.handle_death()
+                        enemy.handle_death(obstacle_list)
+                    if hasattr(enemy, "obj_id") and hasattr(level_info, "killed_enemy_ids"):     
+                        level_info.killed_enemy_ids.add(enemy.obj_id)
         
             if player.alive:
                 player.update()
@@ -610,6 +733,13 @@ def main(win):
 
                 if player.collide(level_end_flag):
                     if keys[pygame.K_RETURN]:
+                        player.reached_level_end = True
+                        update_totals(
+                            delta_coins=player.coin_count,
+                            delta_enemies=len(getattr(level_info, "killed_enemy_ids", [])),
+                            delta_time=level_info.time_taken
+                        )
+                        reset_level_progress(selected_level)
                         fader.fade_out(win, clock)
                         playing_level = False
                         next_level_screen = True
@@ -626,6 +756,7 @@ def main(win):
                     player.handle_death(HEIGHT)
                 else:
                     player.death_timer = 0
+                    update_totals(delta_deaths=1)
                     fader.fade_out(win, clock)
                     death_screen = True
                     playing_level = False
@@ -669,34 +800,129 @@ def main(win):
             level_end_flag.update_sprite()
 
             world.draw_world(bg1, camera, win)
+
+            level_info.update_time()
+            save_level_progress(selected_level, {
+                "last_checkpoint": player.last_checkpoint,
+                "coin_count": player.coin_count,
+                "ammo": player.ammo,
+                "grenades": player.grenades,
+                "health": player.health,
+                "time_taken": level_info.time_taken,
+                "collected_ids": getattr(player, "collected_ids", set()),
+                "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
+                "reached_end": player.reached_level_end,
+            })
             
         elif death_screen:
             draw_death_screen(win)
 
             if restart_btn.draw(win):
-                pass
+                fader.fade_out(win, clock)
+                reset_level_progress(selected_level)
+
+                (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                camera, enemies) = start_level(selected_level)
+
+                next_level_screen = False
+                playing_level = True
+                world.draw_world(bg1, camera, win)
+                fader.fade_in(win, clock)
+
             if exit_btn.draw(win):
                 fader.fade_out(win, clock)
                 death_screen = False
                 main_menu = True
                 draw_main_menu(win)
                 fader.fade_in(win, clock)
+
             if level_start_btn.draw(win):
-                pass
+                fader.fade_out(win, clock)
+
+                (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                camera, enemies) = start_level(selected_level)
+
+                (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                camera, enemies) = apply_saved_progress(
+                    selected_level, world, level_info, obstacle_list, player, level_end_flag,
+                    player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group,
+                    pink_star_group, seashell_group, pearl_group, collectible_gem_group, hazard_group,
+                    constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group,
+                    GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES, camera, enemies)
+
+                if player.health <= 0:
+                    player.health = max(1, player.max_health // 2)
+                player.alive = True
+                player.death_timer = 0
+                if hasattr(player, "death_anim_started"):
+                    player.death_anim_started = False
+
+                death_screen = False
+                playing_level = True
+                world.draw_world(bg1, camera, win)
+                fader.fade_in(win, clock)
 
         elif next_level_screen:
             draw_next_level_screen(win)
 
             if restart_btn.draw(win):
-                pass
+                fader.fade_out(win, clock)
+                reset_level_progress(selected_level)
+
+                (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                camera, enemies) = start_level(selected_level)
+
+                next_level_screen = False
+                playing_level = True
+                world.draw_world(bg1, camera, win)
+                fader.fade_in(win, clock)
+
             if exit_btn.draw(win):
                 fader.fade_out(win, clock)
                 next_level_screen = False
                 main_menu = True
                 draw_main_menu(win)
                 fader.fade_in(win, clock)
-            if level_start_btn.draw(win):
-                pass
+
+            if selected_level != TOTAL_LEVELS:
+                if level_start_btn.draw(win):
+                    fader.fade_out(win, clock)
+                    player.current_level += 1
+                    selected_level += 1
+
+                    (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                    camera, enemies) = start_level(selected_level)
+
+                    (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                    camera, enemies) = apply_saved_progress(
+                        selected_level, world, level_info, obstacle_list, player, level_end_flag,
+                        player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group,
+                        pink_star_group, seashell_group, pearl_group, collectible_gem_group, hazard_group,
+                        constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group,
+                        GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES, camera, enemies)
+
+                    next_level_screen = False
+                    playing_level = True
+                    world.draw_world(bg1, camera, win)
+                    fader.fade_in(win, clock)
 
         pygame.display.update()
 
@@ -717,6 +943,14 @@ def main(win):
                         stats_page = False
                         instructions_page = True
                         draw_instructions_page(win)
+                        fader.fade_in(win, clock)
+                if event.key == pygame.K_t:
+                    if main_menu or instructions_page:
+                        fader.fade_out(win, clock)
+                        main_menu = False
+                        instructions_page = False
+                        stats_page = True
+                        draw_stats_page(win)
                         fader.fade_in(win, clock)
                 if event.key == pygame.K_SPACE:
                     if playing_level and player.alive:
@@ -744,6 +978,17 @@ def main(win):
                         player.launch_grenade(GRENADE_SPRITES, player_grenade_group, 
                                               charge_seconds=player.grenade_charge_time)
     
+    save_level_progress(selected_level, {
+        "last_checkpoint": player.last_checkpoint,
+        "coin_count": player.coin_count,
+        "ammo": player.ammo,
+        "grenades": player.grenades,
+        "health": player.health,
+        "time_taken": level_info.time_taken,
+        "collected_ids": getattr(player, "collected_ids", set()),
+        "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
+        "reached_end": player.reached_level_end,
+    })
     pygame.quit()
 
 

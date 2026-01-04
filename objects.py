@@ -86,6 +86,8 @@ class GrenadeBox(pygame.sprite.Sprite):
                 self.kill()
                 player.grenades += 5
                 player.draw_num_grenades_timer = player.NUM_GRENADES_DURATION
+                if hasattr(player, "collected_ids"):
+                    player.collected_ids.add(getattr(self, "obj_id", f"gbox:{self.rect.x}:{self.rect.y}"))
 
 
 class CollectibleGem(pygame.sprite.Sprite):
@@ -178,6 +180,9 @@ class CollectibleGem(pygame.sprite.Sprite):
                     player.health_bar_timer = player.HEALTH_BAR_DURATION
                 elif self.gem_type == "coin":
                     player.coin_count += 1
+
+                if hasattr(player, "collected_ids"):
+                    player.collected_ids.add(getattr(self, "obj_id", f"gem:{self.rect.x}:{self.rect.y}"))
 
 
 class PurpleGem(CollectibleGem):
