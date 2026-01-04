@@ -11,12 +11,21 @@ class Level:
         self.world_data = world_data
         self.num_of_checkpoints = self.count_checkpoints()
         self.player = player
+        self.player_died = False
+        self.player_lost_health = False
+        self.total_coins = self.count_coins()
 
     def count_checkpoints(self):
         """
         Count the number of checkpoints in the level data.
         """
         return sum(1 for row in self.world_data for tile in row if tile == 28)
+
+    def count_coins(self):
+        """
+        Count the number of coins in the level data
+        """
+        return 0
 
     def update_time(self):
         """Update the time taken for the level."""
@@ -34,6 +43,8 @@ class Level:
         self.start_time = pygame.time.get_ticks()
         self.level_complete = False
         self.player.current_level = self.level_num
+        self.player_died = False
+        self.player_lost_health = False
 
     def get_level_info(self):
         return {

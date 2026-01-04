@@ -64,6 +64,8 @@ class Player(pygame.sprite.Sprite):
             ammo (int): Initial ammo count for the player.
         """
         super().__init__()
+        self.start_x = x
+        self.start_y = y
         self.sprites = SPRITES
         self.gem_sprites = GEM_SPRITES
         self.grenade_sprites = GRENADE_SPRITES
@@ -106,6 +108,8 @@ class Player(pygame.sprite.Sprite):
         self.world_width = WORLD_WIDTH
         self.last_checkpoint = (x, y)
         self.in_danger_zone = False
+        self.death_timer = 0
+        self.death_duration = 180
         self.is_player = True
 
     def reset_position(self):
@@ -229,6 +233,9 @@ class Player(pygame.sprite.Sprite):
                     elif dy < 0 and self.rect.centery > enemy.rect.centery and self.rect.top <= enemy.rect.bottom:
                         self.rect.top = enemy.rect.bottom
                         self.position.y = self.rect.y
+
+        if self.rect.top + dy > HEIGHT:
+            self.health = 0
 
         self.position.x += self.velocity.x
         self.rect.topleft = (int(self.position.x), int(self.position.y))

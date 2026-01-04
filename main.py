@@ -8,12 +8,80 @@ from pink_star import PinkStar
 from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect, compute_danger_zones
 from button import Button
+from level import Level
 from utils import load_level, load_tile_images
 
 pygame.init()
+pygame.mixer.init()
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption(TITLE)
+
+pygame.mixer.music.load('assets/Sounds/music.mp3')
+pygame.mixer.music.set_volume(0.3)
+# pygame.mixer.music.play(-1, 0.0, 5000)
+
+
+class ScreenFade:
+
+    def __init__(self, width: int, height: int, duration_ms: int=500):
+        self.w = width
+        self.h = height
+        self.duration_ms = max(1, duration_ms)
+
+    def _draw_overlay(self, win: pygame.Surface, coverage: float):
+        if coverage <= 0:
+            return
+
+        rw = int(self.w * coverage)
+        rh = int(self.h * coverage)
+        rects = [
+            pygame.Rect(0, 0, rw, rh),                          
+            pygame.Rect(self.w - rw, 0, rw, rh),                
+            pygame.Rect(0, self.h - rh, rw, rh),                
+            pygame.Rect(self.w - rw, self.h - rh, rw, rh),     
+        ]
+
+        overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        for r in rects:
+            pygame.draw.rect(overlay, (0, 0, 0, 255), r)
+
+        win.blit(overlay, (0, 0))
+
+    def fade_out(self, win: pygame.Surface, clock: pygame.time.Clock):
+        """
+        Corners close in to black.
+        """
+        elapsed = 0
+        while elapsed < self.duration_ms:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    raise SystemExit
+            coverage = elapsed / self.duration_ms
+            self._draw_overlay(win, coverage)
+            pygame.display.update()
+            dt = clock.tick(FPS)
+            elapsed += dt
+
+        self._draw_overlay(win, 1.0)
+        pygame.display.update()
+
+    def fade_in(self, win: pygame.Surface, clock: pygame.time.Clock):
+        """
+        Corners open from black to reveal the screen.
+        """
+        elapsed = 0
+        while elapsed < self.duration_ms:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    raise SystemExit
+            coverage = 1.0 - (elapsed / self.duration_ms)
+            self._draw_overlay(win, coverage)
+            pygame.display.update()
+            dt = clock.tick(FPS)
+            elapsed += dt
 
 
 class Camera:
@@ -244,14 +312,12 @@ class World:
         for grenade in self.player_grenade_group:
             grenade.draw(win)
 
-        pygame.display.update()
-
         for obj, attr, old_x in shifted:
             rect = getattr(obj, attr)
             rect.x = old_x
 
 
-def draw_main_menu(win, start_btn):
+def draw_main_menu(win):
     """
     Draw the main menu screen.
     Args:
@@ -261,27 +327,21 @@ def draw_main_menu(win, start_btn):
     draw_text("Main Menu", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
 
     text = "Press I for the instructions and tips page"                         
-    draw_text(text, 'Comicsans', 30, WHITE, win, 1, HEIGHT // 2 - 100, center_x=True)
+    draw_text(text, 'Comicsans', 30, WHITE, win, 1, HEIGHT // 2 - 130, center_x=True)
     text2 = "Press T to view your stats, for each level and your total stats"
-    draw_text(text2, 'Comicsans', 25, WHITE, win, 1, HEIGHT // 2 - 50, center_x=True)
+    draw_text(text2, 'Comicsans', 25, WHITE, win, 1, HEIGHT // 2 - 80, center_x=True)
 
-    start_text = "Press the button below to go to the game levels!"
-    draw_text(start_text, 'Comicsans', 25, WHITE, win, 1, HEIGHT // 2 + 125, center_x=True)
-
-    start_btn.draw(win)
-
-    pygame.display.update()
+    start_text = "Press Start below to start playing!"
+    draw_text(start_text, 'Comicsans', 30, WHITE, win, 1, HEIGHT // 2, center_x=True)
 
 
-def draw_instructions_page(win, back_btn):
+def draw_instructions_page(win):
     """
     Draw the instructions and tips page.
     Args:
         win (Surface): Main game window surface.
     """
     win.fill(PINK)
-
-    back_btn.draw(win)
 
     draw_text("Instructions and Tips", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
     instructions = [
@@ -303,24 +363,86 @@ def draw_instructions_page(win, back_btn):
     for i, line in enumerate(instructions):
         draw_text(line, 'Comicsans', 20, WHITE, win, 30, 90 + i * 40)
 
-    pygame.display.update()
+
+def build_level_buttons():
+    buttons = []
+    cols = 8
+    spacing_x = 100
+    spacing_y = 75
+    start_x = 10
+    start_y = 50
+
+    for i in range(TOTAL_LEVELS):
+        level_id_x = i + 1
+        img_name = f"2_{level_id_x:02d}"
+        img = load_image(img_name, 'GUI', 'Level Numbers', '2')
+        col = i % cols
+        row = i // cols
+        btn = Button(start_x + col * spacing_x, start_y + row * spacing_y, img, 3)
+        buttons.append(btn)
+
+    return buttons
 
 
-def draw_levels_page(win, back_btn, level_btns):
+def draw_levels_page(win, bg1):
     """
     Draw the levels selection page.
     Args:
         win (Surface): Main game window surface.
     """
+    bg1 = pygame.transform.scale(bg1, (WIDTH, HEIGHT))
+    win.blit(bg1, (0, 0))
+
+    draw_text("Levels Page", 'Comicsans', 30, CYAN, win, 1, 7, center_x=True)
+
+
+def start_level(level_num):
+    world_data = load_level(level_num)
+    tile_images = load_tile_images()
+    world = World(tile_images)
+    (level_length, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES) = world.process_data(world_data)
+
+    level_world_width = level_length * TILE_SIZE
+    player.world_width = level_world_width
+    camera = Camera(WIDTH, level_world_width, SCROLL_AREA_WIDTH)
+    enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group)
+    level_info = Level(player, world_data)
+    return (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+            fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+            collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+            checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+            camera, enemies)
+
+
+def draw_death_screen(win):
+    """
+    Draw the death screen when the player dies.
+    Args:
+        win (Surface): Main game window surface.
+    """
+    win.fill(RED)
+    draw_text("You Died!", 'Comicsans', 50, WHITE, win, 1, 10, center_x=True)
+    text = "Click Restart to remove all level data and try again from the start of the level"
+    draw_text(text, 'Comicsans', 20, WHITE, win, 1, HEIGHT // 3 - 60, center_x=True)
+    text2 = "Click start to go to last checkpoint reached, or Exit to go to main menu"
+    draw_text(text2, 'Comicsans', 20, WHITE, win, 1, HEIGHT // 2 + 10, center_x=True)
+
+
+def draw_next_level_screen(win):
+    """
+    Draw the next level screen when the player completes a level.
+    Args:
+        win (Surface): Main game window surface.
+    """
     win.fill(GREEN)
-
-    back_btn.draw(win)
-    draw_text("Levels Page", 'Comicsans', 30, WHITE, win, 1, 7, center_x=True)
-
-    for btn in level_btns:
-        btn.draw(win)
-    
-    pygame.display.update()
+    draw_text("Level Complete!", 'Comicsans', 50, WHITE, win, 1, 10, center_x=True)
+    text = "Click Restart to remove all level data and try again from the start of the level"
+    draw_text(text, 'Comicsans', 20, WHITE, win, 1, HEIGHT // 3 - 60, center_x=True)
+    text2 = "Press Start to proceed to the next level, or Exit to go back to the main menu"
+    draw_text(text2, 'Comicsans', 20, WHITE, win, 1, HEIGHT // 2 + 10, center_x=True)
 
 
 def main(win):
@@ -332,17 +454,7 @@ def main(win):
     """
     clock = pygame.time.Clock()
 
-    level = 1
-
-    world_data = load_level(level)
-    tile_images = load_tile_images()
-    world = World(tile_images)
-    level_length, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
-    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
-
-    level_world_width = level_length * TILE_SIZE
-    player.world_width = level_world_width
-    camera = Camera(WIDTH, level_world_width, SCROLL_AREA_WIDTH)
+    selected_level = 1
 
     bg1 = load_image('1', 'Locations', 'Backgrounds', 'Blue Nebula')
 
@@ -351,20 +463,21 @@ def main(win):
     exit_img = load_image('exit_btn', 'GUI', 'Buttons')
     back_img = load_image('Icon_14', 'GUI', 'Icons')
 
-    start_btn = Button(WIDTH // 2 - 100, HEIGHT - 150, start_img, 0.75)
+    main_start_btn = Button(WIDTH // 2 - 140, HEIGHT - 230, start_img, 1)
+    level_start_btn = Button(WIDTH // 2 - 300, HEIGHT - 200, start_img, 1)
     back_btn = Button(10, 10, back_img, 2.5)
+    restart_btn = Button(WIDTH // 2 - 170, HEIGHT // 3 - 10, restart_img, 3)
+    exit_btn = Button(WIDTH // 2 + 75, HEIGHT - 200, exit_img, 1)
 
-    level_1_img = load_image('2_01', 'GUI', 'Level Numbers', '2')
-    level_2_img = load_image('2_02', 'GUI', 'Level Numbers', '2')
+    level_btns = build_level_buttons()
 
-    level_1_btn = Button(10, 12, level_1_img, 2)
-    level_2_btn = Button(20, 12, level_2_img, 2)
+    (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+    camera, enemies) = start_level(selected_level)
 
-    level_btns = []
-    level_btns.append(level_1_btn)
-    level_btns.append(level_2_btn)
-
-    enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group) 
+    fader = ScreenFade(WIDTH, HEIGHT, duration_ms=1250)
 
     scroll_left = False
     scroll_right = False
@@ -377,36 +490,55 @@ def main(win):
     stats_page = False
     playing_level = False
     death_screen = False
+    next_level_screen = False
 
     run = True
     while run:
         clock.tick(FPS)
 
         if main_menu:
-            draw_main_menu(win, start_btn)
-
-            if start_btn.draw(win):
+            draw_main_menu(win)
+            if main_start_btn.draw(win):
+                fader.fade_out(win, clock)
                 main_menu = False
                 levels_page = True
+                draw_levels_page(win, bg1)
+                fader.fade_in(win, clock)
+
         elif instructions_page:
-            draw_instructions_page(win, back_btn)
+            draw_instructions_page(win)
 
             if back_btn.draw(win):
+                fader.fade_out(win, clock)
                 instructions_page = False
                 main_menu = True
+                draw_main_menu(win)
+                fader.fade_in(win, clock)
+
         elif levels_page:
-            draw_levels_page(win, back_btn, level_btns)
+            draw_levels_page(win, bg1)
 
             if back_btn.draw(win):
+                fader.fade_out(win, clock)
                 levels_page = False
                 main_menu = True
-            if level_1_btn.draw(win):
-                levels_page = False
-                playing_level = True
-            if level_2_btn.draw(win):
-                level = 2
-                levels_page = False
-                playing_level = True
+                draw_main_menu(win)
+                fader.fade_in(win, clock)
+
+            for idx, btn in enumerate(level_btns, start=1):
+                if btn.draw(win):
+                    fader.fade_out(win, clock)
+                    selected_level = idx
+                    (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
+                    fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
+                    collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
+                    checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES,
+                    camera, enemies) = start_level(selected_level)
+                    playing_level = True
+                    levels_page = False
+                    world.draw_world(bg1, camera, win)
+                    fader.fade_in(win, clock)
+            
         elif stats_page:
             pass
         elif playing_level:
@@ -476,14 +608,29 @@ def main(win):
                     else:
                         player.in_danger_zone = False
 
+                if player.collide(level_end_flag):
+                    if keys[pygame.K_RETURN]:
+                        fader.fade_out(win, clock)
+                        playing_level = False
+                        next_level_screen = True
+                        draw_next_level_screen(win)
+                        fader.fade_in(win, clock)
+
                 if scroll_left and scroll > 0:
                     scroll -= 5 * scroll_speed
                 if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
                     scroll += 5 * scroll_speed
             else:
-                player.handle_death(HEIGHT)
-                death_screen = True
-                playing_level = False
+                if player.death_timer < player.death_duration:
+                    player.death_timer += 1
+                    player.handle_death(HEIGHT)
+                else:
+                    player.death_timer = 0
+                    fader.fade_out(win, clock)
+                    death_screen = True
+                    playing_level = False
+                    draw_death_screen(win)
+                    fader.fade_in(win, clock)
 
             for tile in obstacle_list:
                 tile.update()
@@ -522,8 +669,36 @@ def main(win):
             level_end_flag.update_sprite()
 
             world.draw_world(bg1, camera, win)
+            
         elif death_screen:
-            pass
+            draw_death_screen(win)
+
+            if restart_btn.draw(win):
+                pass
+            if exit_btn.draw(win):
+                fader.fade_out(win, clock)
+                death_screen = False
+                main_menu = True
+                draw_main_menu(win)
+                fader.fade_in(win, clock)
+            if level_start_btn.draw(win):
+                pass
+
+        elif next_level_screen:
+            draw_next_level_screen(win)
+
+            if restart_btn.draw(win):
+                pass
+            if exit_btn.draw(win):
+                fader.fade_out(win, clock)
+                next_level_screen = False
+                main_menu = True
+                draw_main_menu(win)
+                fader.fade_in(win, clock)
+            if level_start_btn.draw(win):
+                pass
+
+        pygame.display.update()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -537,9 +712,12 @@ def main(win):
                         player.jump()
                 if event.key == pygame.K_i:
                     if main_menu or stats_page:
+                        fader.fade_out(win, clock)
                         main_menu = False
                         stats_page = False
                         instructions_page = True
+                        draw_instructions_page(win)
+                        fader.fade_in(win, clock)
                 if event.key == pygame.K_SPACE:
                     if playing_level and player.alive:
                         player.shoot = True
