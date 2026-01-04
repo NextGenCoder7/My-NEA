@@ -102,10 +102,23 @@ class Player(pygame.sprite.Sprite):
         self.draw_num_grenades_timer = 0
         self.coin_count = 0
         self.reached_level_end = False
-        self.current_level = 0
+        self.current_level = 1
+        self.world_width = WORLD_WIDTH
         self.last_checkpoint = (x, y)
         self.in_danger_zone = False
         self.is_player = True
+
+    def reset_position(self):
+        """
+        Resets the player's position to the last checkpoint.
+        """
+        self.position.x, self.position.y = self.last_checkpoint
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+        self.velocity.x = 0
+        self.y_vel = 0
+        self.jump_count = 0
+        self.on_ground = False
 
     def handle_movement(self, keys, obstacle_list, hazard_group, enemies_group):
         """
@@ -287,6 +300,15 @@ class Player(pygame.sprite.Sprite):
                             self.rect.left = enemy.rect.right
 
                         self.position.x = self.rect.x
+
+        if self.rect.left + self.velocity.x <= 0:
+            self.direction = "right"
+            self.velocity.x = 0
+            self.position.x = 0
+        elif self.rect.right + self.velocity.x > self.world_width:
+            self.direction = "left"
+            self.velocity.x = 0
+            self.position.x = self.world_width - self.rect.width
 
     def handle_death(self, screen_height):
         """
@@ -507,13 +529,12 @@ class Player(pygame.sprite.Sprite):
             self.ammo -= 1
 
             if self.direction == "right":
-                ammo_direction = pygame.math.Vector2(1, 0)
+                ammo_direction = 1
                 ammo_gem = PurpleGem(self.rect.right - self.img.get_width() // 2, self.rect.centery, ammo_sprites, "player_ammo", ammo_direction)
             else:
-                ammo_direction = pygame.math.Vector2(-1, 0)
+                ammo_direction = -1
                 ammo_gem = PurpleGem(self.rect.left, self.rect.centery, ammo_sprites, "player_ammo", ammo_direction)
 
-            ammo_gem.velocity = ammo_direction * ammo_gem.speed
             ammo_group.add(ammo_gem)
 
         self.shoot = False

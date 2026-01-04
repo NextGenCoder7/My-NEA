@@ -159,7 +159,7 @@ def draw_text_middle(text, fontname, size, color, win):
     win.blit(label, (WIDTH // 2 - label.get_width() // 2, HEIGHT // 2 - label.get_height() // 2))
 
 
-def draw_text(text, fontname, size, color, win, x, y, bold=False):
+def draw_text(text, fontname, size, color, win, x, y, bold=False, center_x=False):
     """
     Draw text at a specific position in the window.
 
@@ -176,7 +176,10 @@ def draw_text(text, fontname, size, color, win, x, y, bold=False):
     font = pygame.font.SysFont(fontname, size, bold)
     label = font.render(text, 1, color)
 
-    win.blit(label, (x, y))
+    if center_x:
+        win.blit(label, (WIDTH // 2 - label.get_width() // 2, y))
+    else:
+        win.blit(label, (x, y))
 
 
 def load_ammo_sprites(character):

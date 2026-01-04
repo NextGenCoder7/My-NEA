@@ -7,6 +7,7 @@ from seashell_pearl import SeashellPearl
 from pink_star import PinkStar
 from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect, compute_danger_zones
+from button import Button
 from utils import load_level, load_tile_images
 
 pygame.init()
@@ -69,6 +70,7 @@ class World:
             pygame sprite groups: these are sprite groups for various types of objects.
             sprite sheets: these are the loaded sprite sheets for gems, hazards, grenades, cannon balls, and pearls.
         """
+        self.level_length = len(data[0])
 
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
@@ -106,7 +108,7 @@ class World:
                         FIERCETOOTH_SPRITES = load_enemy_sprites('Fierce Tooth', 32, 32)
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
                         self.fiercetooth_group.add(fiercetooth_enemy)               
-                        print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
+                        # print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
                         pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 100)
@@ -115,7 +117,7 @@ class World:
                         SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
                         seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True)  
                         self.seashell_group.add(seashell_pearl_enemy)               
-                        print(f"[WORLD] Spawn Seashell tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
+                        # print(f"[WORLD] Spawn Seashell tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile >= 22 and tile <= 24:    # collectible gem tiles: player_ammo, player_health, coins
                         collectible_gem = CollectibleGem(x * TILE_SIZE, y * TILE_SIZE, self.GEM_SPRITES, tile)
                         self.collectible_gem_group.add(collectible_gem)
@@ -130,7 +132,7 @@ class World:
 
         self.danger_zones = compute_danger_zones(self.constraint_rect_group)
 
-        return self.obstacle_group, self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
+        return self.level_length, self.obstacle_group, self.player, self.level_end_flag, self.player_ammo_group, self.player_grenade_group, self.fiercetooth_group, self.cannon_ball_group, self.pink_star_group, \
         self.seashell_group, self.pearl_group, self.collectible_gem_group, self.hazard_group, self.constraint_rect_group, self.danger_zones, self.grenade_box_group, self.checkpoint_group, \
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
@@ -249,6 +251,78 @@ class World:
             rect.x = old_x
 
 
+def draw_main_menu(win, start_btn):
+    """
+    Draw the main menu screen.
+    Args:
+        win (Surface): Main game window surface.
+    """
+    win.fill(ORANGE)
+    draw_text("Main Menu", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
+
+    text = "Press I for the instructions and tips page"                         
+    draw_text(text, 'Comicsans', 30, WHITE, win, 1, HEIGHT // 2 - 100, center_x=True)
+    text2 = "Press T to view your stats, for each level and your total stats"
+    draw_text(text2, 'Comicsans', 25, WHITE, win, 1, HEIGHT // 2 - 50, center_x=True)
+
+    start_text = "Press the button below to go to the game levels!"
+    draw_text(start_text, 'Comicsans', 25, WHITE, win, 1, HEIGHT // 2 + 125, center_x=True)
+
+    start_btn.draw(win)
+
+    pygame.display.update()
+
+
+def draw_instructions_page(win, back_btn):
+    """
+    Draw the instructions and tips page.
+    Args:
+        win (Surface): Main game window surface.
+    """
+    win.fill(PINK)
+
+    back_btn.draw(win)
+
+    draw_text("Instructions and Tips", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
+    instructions = [
+        "Use the arrow keys or WASD to move your character.",
+        "Press SPACE to shoot ammo at enemies.",
+        "Press G to charge and launch grenades - the longer you hold, the further it will go.",
+        "Collect gems to increase your ammo and health.",
+        "Avoid hazards like spikes and saws.",
+        "Use checkpoints to save your progress within a level.",
+        "In smart mode, enemies have enhanced AI logic. Beware of them,",
+        "as they are smarter than you think! Especially Fiercetooth.",
+        "Collect ammo gems, health gems and grenade boxes to help you.",
+        "Also try and collect coins for extra points! Later on you can use them in the shop.",
+        "When you enter a danger zone (guarded by a Pink Star enemy),",
+        "be extra cautious; it always knows where you are and will chase relentlessly!",
+        "Reach the end flag and make sure to press enter to complete the level.",
+        "Good luck and have fun!"
+    ]
+    for i, line in enumerate(instructions):
+        draw_text(line, 'Comicsans', 20, WHITE, win, 30, 90 + i * 40)
+
+    pygame.display.update()
+
+
+def draw_levels_page(win, back_btn, level_btns):
+    """
+    Draw the levels selection page.
+    Args:
+        win (Surface): Main game window surface.
+    """
+    win.fill(GREEN)
+
+    back_btn.draw(win)
+    draw_text("Levels Page", 'Comicsans', 30, WHITE, win, 1, 7, center_x=True)
+
+    for btn in level_btns:
+        btn.draw(win)
+    
+    pygame.display.update()
+
+
 def main(win):
     """
     Main function to run the playing game loop.
@@ -258,15 +332,37 @@ def main(win):
     """
     clock = pygame.time.Clock()
 
-    world_data = load_level(0)
+    level = 1
+
+    world_data = load_level(level)
     tile_images = load_tile_images()
     world = World(tile_images)
-    obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
+    level_length, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group, fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group, \
     collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group, GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES = world.process_data(world_data)
 
-    camera = Camera(WIDTH, WORLD_WIDTH, SCROLL_AREA_WIDTH)
+    level_world_width = level_length * TILE_SIZE
+    player.world_width = level_world_width
+    camera = Camera(WIDTH, level_world_width, SCROLL_AREA_WIDTH)
 
     bg1 = load_image('1', 'Locations', 'Backgrounds', 'Blue Nebula')
+
+    start_img = load_image('start_btn', 'GUI', 'Buttons')
+    restart_img = load_image('restart_btn', 'GUI', 'Buttons')
+    exit_img = load_image('exit_btn', 'GUI', 'Buttons')
+    back_img = load_image('Icon_14', 'GUI', 'Icons')
+
+    start_btn = Button(WIDTH // 2 - 100, HEIGHT - 150, start_img, 0.75)
+    back_btn = Button(10, 10, back_img, 2.5)
+
+    level_1_img = load_image('2_01', 'GUI', 'Level Numbers', '2')
+    level_2_img = load_image('2_02', 'GUI', 'Level Numbers', '2')
+
+    level_1_btn = Button(10, 12, level_1_img, 2)
+    level_2_btn = Button(20, 12, level_2_img, 2)
+
+    level_btns = []
+    level_btns.append(level_1_btn)
+    level_btns.append(level_2_btn)
 
     enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group) 
 
@@ -275,118 +371,159 @@ def main(win):
     scroll = 0
     scroll_speed = 1
 
-    level = 0
+    main_menu = True
+    instructions_page = False
+    levels_page = False
+    stats_page = False
+    playing_level = False
+    death_screen = False
 
     run = True
     while run:
         clock.tick(FPS)
 
-        keys = pygame.key.get_pressed()
+        if main_menu:
+            draw_main_menu(win, start_btn)
 
-        if keys[pygame.K_g] and player.alive and player.grenade_charging:
-            player.grenade_charge_time += clock.get_time() / 1000.0
-            if player.grenade_charge_time > player.GRENADE_MAX_CHARGE_SECONDS:
-                player.grenade_charge_time = player.GRENADE_MAX_CHARGE_SECONDS
+            if start_btn.draw(win):
+                main_menu = False
+                levels_page = True
+        elif instructions_page:
+            draw_instructions_page(win, back_btn)
 
-        for enemy in fiercetooth_group:  
-            if enemy.alive:
-                enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group, obstacle_list, constraint_rect_group)
-                enemy.handle_movement(obstacle_list, constraint_rect_group, player)           
-                enemy.update_sprite(player)
+            if back_btn.draw(win):
+                instructions_page = False
+                main_menu = True
+        elif levels_page:
+            draw_levels_page(win, back_btn, level_btns)
 
-                if hasattr(enemy, 'smartmode') and enemy.smartmode:
-                    enemy.check_and_dodge_bullets(player_ammo_group)
-                    enemy.check_and_dodge_grenades(player_grenade_group)                    
+            if back_btn.draw(win):
+                levels_page = False
+                main_menu = True
+            if level_1_btn.draw(win):
+                levels_page = False
+                playing_level = True
+            if level_2_btn.draw(win):
+                level = 2
+                levels_page = False
+                playing_level = True
+        elif stats_page:
+            pass
+        elif playing_level:
+            keys = pygame.key.get_pressed()
 
-                if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
-                    enemy.shoot(CANNON_BALL_SPRITES, cannon_ball_group)
-                    enemy.was_hit_from_behind = False
-            else:
-                if not enemy.death_handled:
-                    enemy.handle_death()
+            if keys[pygame.K_g] and player.alive and player.grenade_charging:
+                player.grenade_charge_time += clock.get_time() / 1000.0
+                if player.grenade_charge_time > player.GRENADE_MAX_CHARGE_SECONDS:
+                    player.grenade_charge_time = player.GRENADE_MAX_CHARGE_SECONDS
 
-        for enemy in seashell_group:
-            if enemy.alive:
-                enemy.update(player, PEARL_SPRITES, pearl_group)  
-                enemy.handle_movement(obstacle_list)
-                enemy.update_sprite(player)
+            for enemy in fiercetooth_group:  
+                if enemy.alive:
+                    enemy.update(player, CANNON_BALL_SPRITES, cannon_ball_group, obstacle_list, constraint_rect_group)
+                    enemy.handle_movement(obstacle_list, constraint_rect_group, player)           
+                    enemy.update_sprite(player)
 
-                if hasattr(enemy, 'smartmode') and enemy.smartmode:
-                    enemy.react_to_grenades(player, player_grenade_group)
+                    if hasattr(enemy, 'smartmode') and enemy.smartmode:
+                        enemy.check_and_dodge_bullets(player_ammo_group)
+                        enemy.check_and_dodge_grenades(player_grenade_group)                    
 
-                if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
-                    enemy.fire(PEARL_SPRITES, pearl_group)
-                    enemy.was_hit_from_behind = False
-
-        for enemy in pink_star_group:
-            if enemy.alive:
-                enemy.update(player, constraint_rect_group)   
-                enemy.handle_movement(obstacle_list, constraint_rect_group, player)
-                enemy.update_sprite(player)
-            else:
-                if not enemy.death_handled:
-                   enemy.handle_death()
-        
-        if player.alive:
-            player.update()
-            player.handle_movement(keys, obstacle_list, hazard_group, enemies)      
-            player.update_sprite()
-
-            if player.shoot:
-                player.shoot_ammo(GEM_SPRITES, player_ammo_group)
-
-            camera.update(player.rect)
-
-            for zone_rect, validated in danger_zones:
-                if validated and zone_rect.colliderect(player.rect):
-                    player.in_danger_zone = True
+                    if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
+                        enemy.shoot(CANNON_BALL_SPRITES, cannon_ball_group)
+                        enemy.was_hit_from_behind = False
                 else:
-                    player.in_danger_zone = False
+                    if not enemy.death_handled:
+                        enemy.handle_death()
 
-            if scroll_left and scroll > 0:
-                scroll -= 5 * scroll_speed
-            if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
-                scroll += 5 * scroll_speed
-        else:
-            player.handle_death(HEIGHT)
+            for enemy in seashell_group:
+                if enemy.alive:
+                    enemy.update(player, PEARL_SPRITES, pearl_group)  
+                    enemy.handle_movement(obstacle_list)
+                    enemy.update_sprite(player)
 
-        for tile in obstacle_list:
-            tile.update()
+                    if hasattr(enemy, 'smartmode') and enemy.smartmode:
+                        enemy.react_to_grenades(player, player_grenade_group)
 
-        for ammo in player_ammo_group:
-            ammo.update(enemies)   
+                    if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
+                        enemy.fire(PEARL_SPRITES, pearl_group)
+                        enemy.was_hit_from_behind = False
 
-        for grenade in player_grenade_group:
-            grenade.update(player, enemies, obstacle_list)
-            grenade.update_sprite()
+            for enemy in pink_star_group:
+                if enemy.alive:
+                    enemy.update(player, constraint_rect_group)   
+                    enemy.handle_movement(obstacle_list, constraint_rect_group, player)
+                    enemy.update_sprite(player)
+                else:
+                    if not enemy.death_handled:
+                       enemy.handle_death()
+        
+            if player.alive:
+                player.update()
+                player.handle_movement(keys, obstacle_list, hazard_group, enemies)      
+                player.update_sprite()
 
-        for cannon_ball in cannon_ball_group:
-            cannon_ball.update(player)
-            cannon_ball.update_sprite()
+                if player.shoot:
+                    player.shoot_ammo(GEM_SPRITES, player_ammo_group)
 
-        for pearl in pearl_group:
-            pearl.update(player)
-            pearl.update_sprite()
+                camera.update(player.rect)
 
-        for grenade_box in grenade_box_group:
-            grenade_box.update(player)
+                for zone_rect, validated in danger_zones:
+                    if validated and zone_rect.colliderect(player.rect):
+                        if player.rect.left > zone_rect.left and player.rect.right < zone_rect.right and \
+                            player.rect.bottom < zone_rect.bottom and player.rect.top > zone_rect.top:
 
-        for gem in collectible_gem_group:
-            gem.update(player)
-            gem.update_sprite()
+                            player.in_danger_zone = True
+                            break
+                    else:
+                        player.in_danger_zone = False
 
-        for hazard in hazard_group:
-            hazard.update(player)
-            hazard.update_sprite()
+                if scroll_left and scroll > 0:
+                    scroll -= 5 * scroll_speed
+                if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
+                    scroll += 5 * scroll_speed
+            else:
+                player.handle_death(HEIGHT)
+                death_screen = True
+                playing_level = False
 
-        for flag in checkpoint_group:
-            flag.update(player)
-            flag.update_sprite()
+            for tile in obstacle_list:
+                tile.update()
 
-        level_end_flag.update(player)
-        level_end_flag.update_sprite()
+            for ammo in player_ammo_group:
+                ammo.update(enemies, obstacle_list)   
 
-        world.draw_world(bg1, camera, win)
+            for grenade in player_grenade_group:
+                grenade.update(player, enemies, obstacle_list)
+                grenade.update_sprite()
+
+            for cannon_ball in cannon_ball_group:
+                cannon_ball.update(player, obstacle_list)
+                cannon_ball.update_sprite()
+
+            for pearl in pearl_group:
+                pearl.update(player, obstacle_list)
+                pearl.update_sprite()
+
+            for grenade_box in grenade_box_group:
+                grenade_box.update(player)
+
+            for gem in collectible_gem_group:
+                gem.update(player)
+                gem.update_sprite()
+
+            for hazard in hazard_group:
+                hazard.update(player)
+                hazard.update_sprite()
+
+            for flag in checkpoint_group:
+                flag.update(player)
+                flag.update_sprite()
+
+            level_end_flag.update(player)
+            level_end_flag.update_sprite()
+
+            world.draw_world(bg1, camera, win)
+        elif death_screen:
+            pass
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -396,31 +533,36 @@ def main(win):
                 if event.key == pygame.K_ESCAPE:
                     run = False
                 if event.key in (pygame.K_UP, pygame.K_w):
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.jump()
+                if event.key == pygame.K_i:
+                    if main_menu or stats_page:
+                        main_menu = False
+                        stats_page = False
+                        instructions_page = True
                 if event.key == pygame.K_SPACE:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.shoot = True
                 if event.key == pygame.K_g:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.grenade_charging = True
                         player.grenade_charge_time = 0.0
                 if event.key == pygame.K_z:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.draw_num_grenades_timer = player.NUM_GRENADES_DURATION
                 if event.key == pygame.K_x:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.draw_num_ammo_timer = player.NUM_AMMO_DURATION
                 if event.key == pygame.K_h:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.health_bar_timer = player.HEALTH_BAR_DURATION
                 if event.key == pygame.K_c:
-                    if player.alive:
+                    if playing_level and player.alive:
                         player.stamina_bar_timer = player.STAMINA_BAR_DURATION
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_g:
-                    if player.alive and player.grenade_charging:
+                    if player.alive and player.grenade_charging and playing_level:
                         player.launch_grenade(GRENADE_SPRITES, player_grenade_group, 
                                               charge_seconds=player.grenade_charge_time)
     

@@ -35,27 +35,22 @@ def draw_window(win, bg1, scroll, current_tile, save_button, load_button, level,
     """
     draw_bg(bg1, win, scroll)
     
-    # draw grid lines
     draw_grid(win, scroll)
 
-    # draw world
     if isinstance(world_data, list) and isinstance(img_list, list):
         for y, row in enumerate(world_data):
             for x, tile in enumerate(row):
                 if tile >= 0:
                     win.blit(img_list[tile], (x * TILE_SIZE - scroll, y * TILE_SIZE))
     
-    # draw level num text 
     pygame.draw.rect(win, BLACK, (10, HEIGHT + LOWER_MARGIN - 90, 200, 40))
     draw_text(f"Level: {level}", 'Futura', 30, WHITE, win, 10, HEIGHT + LOWER_MARGIN - 90)
 
-    # draw save button
     if save_button.draw(win):
         with open(f"assets/Levels/level_{level}.json", "w") as file:
             json.dump(world_data, file)
         print(f"Level {level} data saved!")
 
-    # draw load button
     if load_button.draw(win):
         if os.path.exists(f"assets/Levels/level_{level}.json"):
             with open(f"assets/Levels/level_{level}.json", "r") as file:
@@ -66,14 +61,12 @@ def draw_window(win, bg1, scroll, current_tile, save_button, load_button, level,
 
     pygame.draw.rect(win, BLACK, (WIDTH, 0, SIDE_MARGIN, HEIGHT + LOWER_MARGIN))
 
-    # draw tile buttons
     if isinstance(buttons_list, list):
         button_count = 0
         for button_count, i in enumerate(buttons_list):
             if i.draw(win):
                 current_tile = button_count
     
-    # draw red highlighter around tile buttons
     pygame.draw.rect(win, RED, buttons_list[current_tile].rect, 3)
 
     pygame.display.update()
@@ -119,7 +112,7 @@ def main_level_editor():
             button_col = 0
 
     current_tile = 0
-    level = 0
+    level = 1
 
     world_data = []
     for _ in range(ROWS):

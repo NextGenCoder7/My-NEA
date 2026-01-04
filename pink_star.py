@@ -77,7 +77,7 @@ class PinkStar(Enemy):
 
     def heuristic(self, a, b):
         """
-        Calculate Manhattan distance between two positions.
+        Calculate the Manhattan distance between two positions (h function).
         """
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -219,24 +219,24 @@ class PinkStar(Enemy):
                     current_node = current_node.parent
                 return path[::-1]
 
-            neighbors = connections.get(current_node.position, [])
+            neighbours = connections.get(current_node.position, [])
             
-            for next_pos in neighbors:
+            for next_pos in neighbours:
                 if next_pos in closed_set:
                     continue
 
                 is_vertical = abs(current_node.position[1] - next_pos[1]) > 10
                 move_cost = 2 if is_vertical else 1
                 
-                neighbor = Node(next_pos, current_node)
-                neighbor.g = current_node.g + move_cost
-                neighbor.h = self.heuristic(neighbor.position, goal_node.position)
-                neighbor.f = neighbor.g + neighbor.h
+                neighbour = Node(next_pos, current_node)
+                neighbour.g = current_node.g + move_cost
+                neighbour.h = self.heuristic(neighbour.position, goal_node.position)
+                neighbour.f = neighbour.g + neighbour.h
                 
                 found_better = False
                 for i, open_node in enumerate(open_set):
-                    if open_node.position == neighbor.position:
-                        if open_node.g <= neighbor.g:
+                    if open_node.position == neighbour.position:
+                        if open_node.g <= neighbour.g:
                             found_better = True
                             break
                         else:
@@ -245,22 +245,28 @@ class PinkStar(Enemy):
                             break
                 
                 if not found_better:
-                    heapq.heappush(open_set, neighbor)
+                    heapq.heappush(open_set, neighbour)
 
         return None
 
-    def handle_death(self):
+    def handle_death(self, obstacle_list):
         self.y_vel += self.GRAVITY
         if self.y_vel > self.death_fall_speed_cap:
             self.y_vel = self.death_fall_speed_cap
 
-        self.velocity.y += self.y_vel
+        dy = self.y_vel
 
-        if self.rect.bottom + self.velocity.y > 400:
-            self.velocity.y = 400 - self.rect.bottom
-            self.jump_count = 0
-            self.y_vel = 0
-            self.death_handled = True
+        self.position.y += dy
+        self.rect.topleft = (int(self.position.x), int(self.position.y))
+        self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+            if self.rect.colliderect(tile.collide_rect):         
+                if dy > 0:  
+                    self.rect.bottom = tile.collide_rect.top
+                    self.position.y = self.rect.y
+                    self.y_vel = 0
+                    self.death_handled = True
 
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -633,7 +639,7 @@ class PinkStar(Enemy):
 
             if distance <= self.attack_range // 2 and height_difference < 10:
                 if player.alive:
-                    player.get_hit(20, attacker=self)
+                    player.get_hit(90, attacker=self)
                 self.attacking = False
                 self.chasing_player = False
                 self.post_attack_recovery = True

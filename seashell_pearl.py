@@ -49,7 +49,7 @@ class SeashellPearl(Enemy):
         """
         super().__init__(x, y, x_vel, sprites, health)
 
-        self.vision_range = 400
+        self.vision_range = 425
         self.vision_angle = 20
         self.player_in_vision = False
 

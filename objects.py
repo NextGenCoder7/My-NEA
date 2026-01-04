@@ -198,9 +198,11 @@ class PurpleGem(CollectibleGem):
         self.img = pygame.transform.scale(base_img, (TILE_SIZE // 4, TILE_SIZE // 4))
         self.speed = 10
         self.direction = direction
-        self.velocity = pygame.math.Vector2(0, 0)
+        self.velocity = pygame.math.Vector2(self.direction * self.speed, 0)
+        self.rect = self.img.get_rect(topleft=(int(self.position.x), int(self.position.y)))
+        self.mask = pygame.mask.from_surface(self.img)
 
-    def update(self, enemies_group):
+    def update(self, enemies_group, obstacle_list):
         """
         Move the projectile and check collision with enemies or screen bounds.
 
@@ -210,15 +212,22 @@ class PurpleGem(CollectibleGem):
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
+
+        for tile in obstacle_list:
+                if self.rect.colliderect(tile.collide_rect):
+                    self.kill()
+                    return
         
         if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
             self.kill()
+            return
 
         for enemy in enemies_group:
             if self.collide(enemy):
                 if enemy.alive:
                     enemy.get_hit(20, attacker=self)
                     self.kill()
+                    return
 
 
 class Hazard(pygame.sprite.Sprite):
@@ -479,7 +488,7 @@ class Pearl(pygame.sprite.Sprite):
         self.img = sprites[frame_index]
         self.animation_count += 1
 
-    def update(self, player):
+    def update(self, player, obstacle_list):
         """
         Move the pearl and check collisions with the player and screen bounds.
 
@@ -490,6 +499,10 @@ class Pearl(pygame.sprite.Sprite):
             self.position += self.velocity
             self.rect.topleft = (int(self.position.x), int(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
+
+            for tile in obstacle_list:
+                if self.rect.colliderect(tile.collide_rect):
+                    self.kill()
 
             if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
                 self.kill()
@@ -609,7 +622,7 @@ class CannonBall(pygame.sprite.Sprite):
         self.img = sprites[frame_index]
         self.animation_count += 1
         
-    def update(self, player):
+    def update(self, player, obstacle_list):
         """
         Move the cannon ball and check collisions with the player and screen bounds.
 
@@ -620,6 +633,10 @@ class CannonBall(pygame.sprite.Sprite):
             self.position += self.velocity
             self.rect.topleft = (int(self.position.x), int(self.position.y))
             self.mask = pygame.mask.from_surface(self.img)
+
+            for tile in obstacle_list:
+                if self.rect.colliderect(tile.collide_rect):
+                    self.kill()
 
             if self.rect.right < 0 or self.rect.left > WORLD_WIDTH:
                 self.kill()
