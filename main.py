@@ -192,8 +192,8 @@ class World:
             tile.draw(win)
 
         # for testing purposes
-        for rect in self.constraint_rect_group:
-            rect.draw(win)
+        # for rect in self.constraint_rect_group:
+        #     rect.draw(win)
 
         for flag in self.checkpoint_group:
             flag.draw(win)

@@ -281,7 +281,67 @@ class PinkStar(Enemy):
                 if constraint.colour == PURPLE:
                     purple_rects.append(constraint)
 
-        if not self.chasing_player or not self.path:
+        if self.chasing_player:
+            # Follow path if we have one
+            if self.path and self.current_path_index < len(self.path):
+                node_center_pos = self.path[self.current_path_index]
+                target_x, target_y = self.get_node_edge_coord(node_center_pos, purple_rects, self.direction)
+                target_is_node = self.get_purple_rect_by_center(node_center_pos, purple_rects) is not None
+
+                dist_to_target = math.hypot(self.rect.centerx - target_x, self.rect.centery - target_y)
+
+                if dist_to_target < 10:
+                    self.current_path_index += 1
+                    if self.current_path_index >= len(self.path):
+                        self.path = []
+                        self.current_path_index = 0
+                else:
+                    dx = target_x - self.rect.centerx
+                    dy = target_y - self.rect.centery
+
+                    # drive horizontal movement toward target
+                    if abs(dx) > 3:
+                        if dx > 0:
+                            self.velocity.x = self.speed
+                            self.direction = "right"
+                            self.moving_right = True
+                        else:
+                            self.velocity.x = -self.speed
+                            self.direction = "left"
+                            self.moving_left = True
+                        self.state = "running"
+                        self.state_timer = 0
+
+                    # If target is not a node and player is clearly above, replan instead of head-banging
+                    if not target_is_node and dy < -12 and abs(dx) < 6 and self.on_ground:
+                        self.path = []
+                        self.current_path_index = 0
+                        # encourage immediate replan next update
+                        self.path_update_timer = self.path_update_interval
+                    elif dy < -12 and self.on_ground and self.jump_count < 1:
+                        self.jump()
+            else:
+                # No path yet: directly chase player center
+                if player:
+                    dx = player.rect.centerx - self.rect.centerx
+                    dy = player.rect.centery - self.rect.centery
+
+                    if abs(dx) > 3:
+                        if dx > 0:
+                            self.velocity.x = self.speed
+                            self.direction = "right"
+                            self.moving_right = True
+                        else:
+                            self.velocity.x = -self.speed
+                            self.direction = "left"
+                            self.moving_left = True
+                        self.state = "running"
+                        self.state_timer = 0
+
+                    if dy < -12 and self.on_ground and self.jump_count < 1:
+                        self.jump()
+        else:
+            # Idle / wander when not chasing
             self.state_timer += 1
             if self.state_timer >= self.state_duration:
                 if self.state == "idle":
@@ -301,39 +361,6 @@ class PinkStar(Enemy):
                 else:
                     self.velocity.x = -self.speed
                     self.moving_left = True
-        else:
-            if self.current_path_index < len(self.path):
-                node_center_pos = self.path[self.current_path_index]
-                target_x, target_y = self.get_node_edge_coord(node_center_pos, purple_rects, self.direction)
-            
-                dist_to_target = math.hypot(self.rect.centerx - target_x, self.rect.centery - target_y)
-
-                if dist_to_target < 10:  # Close enough to target node
-                    self.current_path_index += 1
-                    if self.current_path_index >= len(self.path):
-                        # Reached end of path, recalculate on next update
-                        self.path = []
-                        self.current_path_index = 0
-                    else:
-                        pass
-                else:
-                    dx = target_x - self.rect.centerx
-                    dy = target_y - self.rect.centery
-                    
-                    if abs(dx) > 3:
-                        if dx > 0:
-                            self.velocity.x = self.speed
-                            self.direction = "right"
-                            self.moving_right = True
-                        else:
-                            self.velocity.x = -self.speed
-                            self.direction = "left"
-                            self.moving_left = True
-                        self.state = "running"
-                        self.state_timer = 0
-                    if dy < -12:  
-                        if self.on_ground and self.jump_count < 1:
-                            self.jump()
         
         self.y_vel += self.GRAVITY
         if self.y_vel > 10:
