@@ -418,7 +418,7 @@ def draw_stats_page(win):
     draw_text("Stats", 'Comicsans', 42, WHITE, win, 1, y, center_x=True)
     y += 50
 
-    draw_text("Totals", 'Comicsans', 30, CYAN, win, 20, y)
+    draw_text("Total lifetime Stats", 'Comicsans', 30, CYAN, win, 20, y)
     y += 32
     draw_text(f"Coins: {totals['total_coins']}", 'Comicsans', 24, WHITE, win, 40, y); y += 26
     draw_text(f"Enemies defeated: {totals['total_enemies']}", 'Comicsans', 24, WHITE, win, 40, y); y += 26
@@ -616,7 +616,7 @@ def main(win):
                 fader.fade_in(win, clock)
 
             for idx, btn in enumerate(level_btns, start=1):
-                if btn.draw(win):
+                if btn.draw(win) and idx <= CURRENT_MAX_LEVELS:
                     fader.fade_out(win, clock)
                     selected_level = idx
 
@@ -655,8 +655,7 @@ def main(win):
                 main_menu = True
                 draw_main_menu(win)
                 fader.fade_in(win, clock)
-
-            
+        
         elif playing_level:
             keys = pygame.key.get_pressed()
 
@@ -896,7 +895,7 @@ def main(win):
                 draw_main_menu(win)
                 fader.fade_in(win, clock)
 
-            if selected_level != TOTAL_LEVELS:
+            if selected_level < CURRENT_MAX_LEVELS:
                 if level_start_btn.draw(win):
                     fader.fade_out(win, clock)
                     player.current_level += 1
