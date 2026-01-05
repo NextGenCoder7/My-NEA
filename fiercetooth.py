@@ -4,6 +4,7 @@ import random
 from constants import *
 from objects import CannonBall
 from enemies import Enemy
+from level import shot_fx
 
 
 class FierceTooth(Enemy):
@@ -527,6 +528,7 @@ class FierceTooth(Enemy):
             self.hit_anim_timer = self.HIT_ANIM_DURATION
 
     def shoot(self, ammo_sprites, ammo_group):
+        shot_fx.play()
         self.shoot_cooldown = 60
             
         if self.direction == "right":

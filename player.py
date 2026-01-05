@@ -3,6 +3,7 @@ import math
 from constants import *
 from objects import PurpleGem, Grenade
 from utils import draw_text
+from level import shot_fx, jump_fx
 
 
 class Player(pygame.sprite.Sprite):
@@ -363,6 +364,7 @@ class Player(pygame.sprite.Sprite):
         Supports single and double jumps.
         """
         if self.jump_count < 2:
+            jump_fx.play()
             if not self.in_danger_zone:
                 if self.jump_count == 0:
                     self.y_vel = -14
@@ -536,6 +538,7 @@ class Player(pygame.sprite.Sprite):
             ammo_group (Group): Pygame Group to which the ammo object will be added.
         """
         if self.shoot_cooldown == 0 and self.ammo > 0 and self.hit_anim_timer == 0:
+            shot_fx.play()
             self.shoot_cooldown = 20
             self.ammo -= 1
 

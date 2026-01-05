@@ -8,24 +8,24 @@ from pink_star import PinkStar
 from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect, compute_danger_zones
 from button import Button
-from level import Level
+from level import Level, unmute_music, mute_music
 from utils import load_level, load_tile_images
-from database import init_db, load_level_progress, save_level_progress, reset_level_progress, update_totals, get_player_totals, get_level_progress
+from database import init_db, load_level_progress, save_level_progress, reset_level_progress, update_totals, get_player_totals, get_level_progress, update_best_stats, get_level_best_stats
 
 pygame.init()
-pygame.mixer.init()
 
 init_db()
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption(TITLE)
 
-pygame.mixer.music.load('assets/Sounds/music.mp3')
-pygame.mixer.music.set_volume(0.3)
-# pygame.mixer.music.play(-1, 0.0, 5000)
-
 
 class ScreenFade:
+    """
+    Draw screen fades (fade out and in) for when the user changes screen.
+
+    Please note, this ScreenFade class has been fully coded by AI. 
+    """
 
     def __init__(self, width: int, height: int, duration_ms: int=500):
         self.w = width
@@ -413,6 +413,7 @@ def draw_stats_page(win):
 
     totals = get_player_totals()
     level_rows = get_level_progress()
+    best_rows = {r["level_id"]: r for r in get_level_best_stats()}
 
     y = 30
     draw_text("Stats", 'Comicsans', 42, WHITE, win, 1, y, center_x=True)
@@ -433,10 +434,23 @@ def draw_stats_page(win):
         for row in level_rows:
             if y > HEIGHT - 30:
                 break  
-            draw_text(f"Level {row['level_id']}", 'Comicsans', 26, WHITE, win, 40, y); y += 24
-            draw_text(f"  Coins: {row['coin_count']}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
-            draw_text(f"  Enemies defeated: {len(row['killed_enemy_ids'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
-            draw_text(f"  Time (s): {int(row['time_taken'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y); y += 22
+
+            draw_text(f"Level {row['level_id']}", 'Comicsans', 26, WHITE, win, 40, y)
+            y += 24
+            draw_text(f"  Coins: {row['coin_count']}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y)
+            y += 22
+            draw_text(f"  Enemies defeated: {len(row['killed_enemy_ids'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y)
+            y += 22
+            draw_text(f"  Deaths: {row.get('deaths', 0)}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y)
+            y += 22
+            draw_text(f"  Time (s): {int(row['time_taken'])}", 'Comicsans', 22, LIGHT_GRAY, win, 60, y)
+            y += 22
+            b = best_rows.get(row["level_id"])
+            if b:
+                draw_text(
+                    f"  Best -> Deaths: {b['best_deaths']}  Coins: {b['best_coins']}  Enemies: {b['best_enemies']}  Time: {int(b['best_time'])}s",
+                    'Comicsans', 22, CYAN, win, 60, y)
+                y += 26
 
 
 def start_level(level_num):
@@ -485,6 +499,7 @@ def apply_saved_progress(selected_level, world, level_info, obstacle_list, playe
     player.collected_ids = set(progress["collected_ids"])
     level_info.collected_ids = set(progress["collected_ids"])
     level_info.killed_enemy_ids = set(progress["killed_enemy_ids"])
+    level_info.deaths = progress.get("deaths", 0)
 
     for gem in list(collectible_gem_group):
         if getattr(gem, "obj_id", None) in level_info.collected_ids:
@@ -587,6 +602,7 @@ def main(win):
         clock.tick(FPS)
 
         if main_menu:
+            mute_music()
             draw_main_menu(win)
             if main_start_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -596,6 +612,7 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif instructions_page:
+            mute_music()
             draw_instructions_page(win)
 
             if back_btn.draw(win):
@@ -606,6 +623,7 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif levels_page:
+            mute_music()
             draw_levels_page(win, bg1)
 
             if back_btn.draw(win):
@@ -647,6 +665,7 @@ def main(win):
                     fader.fade_in(win, clock)
             
         elif stats_page:
+            mute_music()
             draw_stats_page(win)
 
             if back_btn.draw(win):
@@ -657,6 +676,7 @@ def main(win):
                 fader.fade_in(win, clock)
         
         elif playing_level:
+            unmute_music()
             keys = pygame.key.get_pressed()
 
             if keys[pygame.K_g] and player.alive and player.grenade_charging:
@@ -738,7 +758,14 @@ def main(win):
                             delta_enemies=len(getattr(level_info, "killed_enemy_ids", [])),
                             delta_time=level_info.time_taken
                         )
-                        reset_level_progress(selected_level)
+                        update_best_stats(
+                            selected_level,
+                            deaths=level_info.deaths,
+                            coins=player.coin_count,
+                            enemies=len(getattr(level_info, "killed_enemy_ids", [])),
+                            time_taken=level_info.time_taken
+                        )
+                        reset_level_progress(selected_level)         
                         fader.fade_out(win, clock)
                         playing_level = False
                         next_level_screen = True
@@ -756,6 +783,7 @@ def main(win):
                 else:
                     player.death_timer = 0
                     update_totals(delta_deaths=1)
+                    level_info.deaths += 1
                     fader.fade_out(win, clock)
                     death_screen = True
                     playing_level = False
@@ -808,12 +836,14 @@ def main(win):
                 "grenades": player.grenades,
                 "health": player.health,
                 "time_taken": level_info.time_taken,
+                "deaths": level_info.deaths,
                 "collected_ids": getattr(player, "collected_ids", set()),
                 "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
                 "reached_end": player.reached_level_end,
             })
             
         elif death_screen:
+            mute_music()
             draw_death_screen(win)
 
             if restart_btn.draw(win):
@@ -871,6 +901,7 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif next_level_screen:
+            mute_music()
             draw_next_level_screen(win)
 
             if restart_btn.draw(win):
@@ -984,10 +1015,12 @@ def main(win):
         "grenades": player.grenades,
         "health": player.health,
         "time_taken": level_info.time_taken,
+        "deaths": level_info.deaths,
         "collected_ids": getattr(player, "collected_ids", set()),
         "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
         "reached_end": player.reached_level_end,
     })
+    mute_music()
     pygame.quit()
 
 

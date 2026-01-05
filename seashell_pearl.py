@@ -1,9 +1,9 @@
 import pygame
 import math
-import random
 from constants import *
 from enemies import Enemy
 from objects import Pearl
+from level import shot_fx
 
 
 class SeashellPearl(Enemy):
@@ -305,6 +305,7 @@ class SeashellPearl(Enemy):
             ammo_group (Group): Group to add spawned Pearl sprites.
         """
 
+        shot_fx.play()
         self.fire_cooldown = 32  
 
         if self.direction == "right":

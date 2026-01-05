@@ -2,6 +2,7 @@ import pygame
 from constants import WIDTH, FPS, TILE_SIZE, WORLD_WIDTH
 import math
 from random import randint
+from level import explosion_fx
 
 
 class Obstacle(pygame.sprite.Sprite):
@@ -774,6 +775,7 @@ class Grenade(pygame.sprite.Sprite):
         """
         midbottom = self.rect.midbottom
 
+        explosion_fx.play()
         self.state = "blast"
         self.animation_count = 0
         self.velocity = pygame.math.Vector2(0, 0)

@@ -1,5 +1,26 @@
 import pygame
 
+pygame.mixer.init()
+
+pygame.mixer.music.load('assets/Sounds/music.mp3')
+pygame.mixer.music.set_volume(0.0)
+pygame.mixer.music.play(-1, 0.0, 5000)
+
+jump_fx = pygame.mixer.Sound('assets/Sounds/jump.wav')
+jump_fx.set_volume(0.5)
+explosion_fx = pygame.mixer.Sound('assets/Sounds/explosion.wav')
+explosion_fx.set_volume(0.5)
+shot_fx = pygame.mixer.Sound('assets/Sounds/shot.wav')
+shot_fx.set_volume(0.5)
+
+
+def unmute_music():
+    pygame.mixer.music.set_volume(0.3)
+
+
+def mute_music():
+    pygame.mixer.music.set_volume(0.0)
+
 
 class Level:
 
@@ -13,19 +34,13 @@ class Level:
         self.player = player
         self.player_died = False
         self.player_lost_health = False
-        self.total_coins = self.count_coins()
+        self.deaths = 0
 
     def count_checkpoints(self):
         """
         Count the number of checkpoints in the level data.
         """
         return sum(1 for row in self.world_data for tile in row if tile == 28)
-
-    def count_coins(self):
-        """
-        Count the number of coins in the level data
-        """
-        return 0
 
     def update_time(self):
         """Update the time taken for the level."""

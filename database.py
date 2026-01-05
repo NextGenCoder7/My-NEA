@@ -22,11 +22,13 @@ def init_db():
             grenades INTEGER,
             health INTEGER,
             time_taken REAL,
+            deaths INTEGER DEFAULT 0,
             collected_ids TEXT,
             killed_enemy_ids TEXT,
             reached_end INTEGER DEFAULT 0
         )
         """)
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS PlayerTotals (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -36,7 +38,19 @@ def init_db():
             total_time REAL DEFAULT 0
         )
         """)
+
         cur.execute("INSERT OR IGNORE INTO PlayerTotals (id) VALUES (1)")
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS LevelBestStats (
+            level_id INTEGER PRIMARY KEY,
+            best_deaths INTEGER,
+            best_coins INTEGER,
+            best_enemies INTEGER,
+            best_time REAL
+        )
+        """)
+
         conn.commit()
 
 
@@ -48,6 +62,7 @@ def save_level_progress(level_id: int, payload: Dict[str, Any]):
       collected_ids: set[str]
       killed_enemy_ids: set[str]
     """
+
     last_cp = payload.get("last_checkpoint") or (None, None)
     collected = json.dumps(sorted(payload.get("collected_ids", [])))
     killed = json.dumps(sorted(payload.get("killed_enemy_ids", [])))
@@ -55,8 +70,8 @@ def save_level_progress(level_id: int, payload: Dict[str, Any]):
         cur = conn.cursor()
         cur.execute("""
         INSERT INTO LevelProgress (level_id, last_checkpoint_x, last_checkpoint_y, coin_count, ammo,
-                                   grenades, health, time_taken, collected_ids, killed_enemy_ids, reached_end)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   grenades, health, time_taken, deaths, collected_ids, killed_enemy_ids, reached_end)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(level_id) DO UPDATE SET
             last_checkpoint_x=excluded.last_checkpoint_x,
             last_checkpoint_y=excluded.last_checkpoint_y,
@@ -65,6 +80,7 @@ def save_level_progress(level_id: int, payload: Dict[str, Any]):
             grenades=excluded.grenades,
             health=excluded.health,
             time_taken=excluded.time_taken,
+            deaths=excluded.deaths,
             collected_ids=excluded.collected_ids,
             killed_enemy_ids=excluded.killed_enemy_ids,
             reached_end=excluded.reached_end
@@ -76,6 +92,7 @@ def save_level_progress(level_id: int, payload: Dict[str, Any]):
             payload.get("grenades", 0),
             payload.get("health", 0),
             payload.get("time_taken", 0.0),
+            payload.get("deaths", 0),
             collected,
             killed,
             1 if payload.get("reached_end") else 0
@@ -88,7 +105,7 @@ def load_level_progress(level_id: int) -> Dict[str, Any]:
         cur = conn.cursor()
         cur.execute("""
         SELECT last_checkpoint_x, last_checkpoint_y, coin_count, ammo, grenades, health,
-               time_taken, collected_ids, killed_enemy_ids, reached_end
+               time_taken, deaths, collected_ids, killed_enemy_ids, reached_end
         FROM LevelProgress WHERE level_id = ?
         """, (level_id,))
         row = cur.fetchone()
@@ -100,12 +117,13 @@ def load_level_progress(level_id: int) -> Dict[str, Any]:
                 "grenades": None,
                 "health": None,
                 "time_taken": 0.0,
+                "deaths": 0,
                 "collected_ids": set(),
                 "killed_enemy_ids": set(),
                 "reached_end": False
             }
-        collected = set(json.loads(row[7] or "[]"))
-        killed = set(json.loads(row[8] or "[]"))
+        collected = set(json.loads(row[8] or "[]"))
+        killed = set(json.loads(row[9] or "[]"))
         return {
             "last_checkpoint": (row[0], row[1]) if row[0] is not None and row[1] is not None else None,
             "coin_count": row[2] or 0,
@@ -113,9 +131,10 @@ def load_level_progress(level_id: int) -> Dict[str, Any]:
             "grenades": row[4],
             "health": row[5],
             "time_taken": row[6] or 0.0,
+            "deaths": row[7] or 0,
             "collected_ids": collected,
             "killed_enemy_ids": killed,
-            "reached_end": bool(row[9])
+            "reached_end": bool(row[10])
         }
 
 
@@ -167,7 +186,7 @@ def get_level_progress():
         cur = conn.cursor()
         cur.execute("""
         SELECT level_id, last_checkpoint_x, last_checkpoint_y, coin_count, ammo,
-               grenades, health, time_taken, collected_ids, killed_enemy_ids, reached_end
+               grenades, health, time_taken, deaths, collected_ids, killed_enemy_ids, reached_end
         FROM LevelProgress
         ORDER BY level_id ASC
         """)
@@ -178,8 +197,77 @@ def get_level_progress():
                 "level_id": r[0],
                 "coin_count": r[3] or 0,
                 "time_taken": r[7] or 0.0,
-                "killed_enemy_ids": set(json.loads(r[9] or "[]")),
-                "reached_end": bool(r[10]),
+                "deaths": r[8] or 0,
+                "killed_enemy_ids": set(json.loads(r[10] or "[]")),
+                "reached_end": bool(r[11]),
             })
 
+        return results
+
+
+def update_best_stats(level_id: int, deaths: int, coins: int, enemies: int, time_taken: float):
+    """
+    This method updates the player's best stats per level, after level completion. It takes into account:
+      1) deaths (lower is better)
+      2) coins (higher is better)
+      3) enemies (higher is better)
+      4) time taken (lower is better)
+    """
+
+    with _connect() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+        SELECT best_deaths, best_coins, best_enemies, best_time
+        FROM LevelBestStats WHERE level_id = ?
+        """, (level_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.execute("""
+            INSERT INTO LevelBestStats (level_id, best_deaths, best_coins, best_enemies, best_time)
+            VALUES (?, ?, ?, ?, ?)
+            """, (level_id, deaths, coins, enemies, time_taken))
+            conn.commit()
+            return
+
+        best = {
+            "deaths": row[0] if row[0] is not None else 1_000_000,
+            "coins": row[1] if row[1] is not None else 0,
+            "enemies": row[2] if row[2] is not None else 0,
+            "time": row[3] if row[3] is not None else 1e12,
+        }
+
+        picks = (deaths, -coins, -enemies, time_taken)
+        current = (best["deaths"], -best["coins"], -best["enemies"], best["time"])
+        if picks < current:
+            cur.execute("""
+            UPDATE LevelBestStats
+            SET best_deaths = ?, best_coins = ?, best_enemies = ?, best_time = ?
+            WHERE level_id = ?
+            """, (deaths, coins, enemies, time_taken, level_id))
+            conn.commit()
+
+
+def get_level_best_stats():
+    """
+    Retrieve and return the player's best stats for the level
+    """
+
+    with _connect() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+        SELECT level_id, best_deaths, best_coins, best_enemies, best_time
+        FROM LevelBestStats
+        ORDER BY level_id ASC
+        """)
+        rows = cur.fetchall()
+        results = []
+        for r in rows:
+            results.append({
+                "level_id": r[0],
+                "best_deaths": r[1],
+                "best_coins": r[2],
+                "best_enemies": r[3],
+                "best_time": r[4],
+            })
+            
         return results
