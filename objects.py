@@ -1,13 +1,30 @@
 import pygame
-from constants import WIDTH, FPS, TILE_SIZE, WORLD_WIDTH
+from constants import FPS, TILE_SIZE, WORLD_WIDTH
 import math
 from random import randint
 from level import explosion_fx
 
 
 class Obstacle(pygame.sprite.Sprite):
+    """
+    A collidable obstacle (platform) in the game world.
+
+    Attributes:
+        img (Surface): Pygame Surface used to draw the obstacle.
+        rect (Rect): Rectangular area representing the obstacle's position and size.
+        collide_rect (Rect): Rectangular area used for collision detection.
+    """
 
     def __init__(self, img, img_rect, collide_rect):
+        """
+        Initialise an Obstacle object.
+
+        Args:
+            img (Surface): Pygame Surface used to draw the obstacle.
+            img_rect (Rect): Rectangular area representing the obstacle's position and size.
+            collide_rect (Rect): Rectangular area used for collision detection.
+        """
+
         super().__init__()
         
         self.img = img
@@ -15,15 +32,26 @@ class Obstacle(pygame.sprite.Sprite):
         self.collide_rect = collide_rect
 
     def draw(self, win):
+        """
+        Draw the obstacle on the provided surface.
+
+        Args:
+            win (Surface): Pygame Surface to draw the obstacle on.
+        """
+
         win.blit(self.img, self.rect)
 
     def update(self):
+        """
+        Update the obstacle's rect position.
+        """
+
         self.rect = self.img.get_rect(topleft=(int(self.rect.x), int(self.rect.y)))
 
 
 class GrenadeBox(pygame.sprite.Sprite):
     """
-    A box that contains grenades for the player to collect.
+    A box that contains grenades for the player to collect (a type of collectible item, but NOT a CollectibleGem).
 
     Attributes:
         img (Surface): Pygame Surface used to draw the grenade box.
@@ -40,6 +68,7 @@ class GrenadeBox(pygame.sprite.Sprite):
             y (float): Y-coordinate of the grenade box's position.
             img (Surface): Pygame Surface used to draw the grenade box.
         """
+
         super().__init__()
 
         self.img = img
@@ -51,6 +80,7 @@ class GrenadeBox(pygame.sprite.Sprite):
         """
         Draw the grenade box on the provided surface.
         """
+
         win.blit(self.img, self.rect)
 
     def collide(self, obj):
@@ -74,6 +104,7 @@ class GrenadeBox(pygame.sprite.Sprite):
     def update(self, player):
         """
         Update grenade box position/mask and remove it if the player collects it.
+        Gives the player 5 grenades when collected.
 
         Args:
             player (Player): Player object used to detect collection.
@@ -92,6 +123,20 @@ class GrenadeBox(pygame.sprite.Sprite):
 
 
 class CollectibleGem(pygame.sprite.Sprite):
+    """
+    A collectible gem that the player can pick up for ammo, health, or coins.
+
+    Attributes:
+        ANIMATION_DELAY (int): Delay in frames between sprite animations.
+
+        sprites (dict): The sprite sheets for hazards.
+        gem_type (str): Type of gem ("player_ammo", "player_health", or "coin") based on the tile number from processing world data.
+        img (Surface): Current image/sprite of the gem.
+        position (Vector2): Current position of the gem.
+        rect (Rect): Rectangular area representing the gem's position and size.
+        mask (Mask): Pixel-perfect collision mask for the gem.
+        animation_count (int): Counter for animation frame updates.
+    """
 
     ANIMATION_DELAY = 5
 
@@ -105,6 +150,7 @@ class CollectibleGem(pygame.sprite.Sprite):
             sprites (dict): the sprite sheets for hazards.
             tile_number (int): the tile number when processing data in World class.
         """
+
         super().__init__()
 
         self.sprites = sprites
@@ -140,13 +186,18 @@ class CollectibleGem(pygame.sprite.Sprite):
     def draw(self, win):
         """
         Draw the gem on the provided surface.
+
+        Args:
+            win (Surface): Pygame Surface to draw the gem on.
         """
+
         win.blit(self.img, self.rect)
 
     def update_sprite(self):
         """
         Update gem sprite animation frame.
         """
+
         sprite_sheet_name = self.gem_type
         
         if sprite_sheet_name in self.sprites:
@@ -159,10 +210,12 @@ class CollectibleGem(pygame.sprite.Sprite):
     def update(self, player):
         """
         Update gem position/mask and remove it if the player collects it.
+        If collected, gives the player ammo, health, or coins based on gem type.
 
         Args:
             player (Player): Player object used to detect collection.
         """
+
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
@@ -187,10 +240,22 @@ class CollectibleGem(pygame.sprite.Sprite):
 
 
 class PurpleGem(CollectibleGem):
+    """
+    A purple gem that acts as a projectile fired by the player.
+    Although it inherits from CollectibleGem, it is not a collectible gem type.
+
+    Attributes:
+        img (Surface): Current image/sprite of the projectile.
+        speed (float): Speed of the projectile.
+        direction (Vector2): Direction vector the projectile will travel.
+        velocity (Vector2): Velocity vector of the projectile.
+        rect (Rect): Rectangular area representing the projectile's position and size.
+        mask (Mask): Pixel-perfect collision mask for the projectile.
+    """
 
     def __init__(self, x, y, sprites, gem_type, direction):
         """
-        Initialise a PurpleGem which acts as player's projectile.
+        Initialise a PurpleGem object which acts as player's projectile.
 
         Args:
             x (float): Initial x position.
@@ -198,6 +263,7 @@ class PurpleGem(CollectibleGem):
             sprites (dict): the sprite sheets for hazards.
             direction (Vector2): Direction vector the projectile will travel.
         """
+
         super().__init__(x, y, sprites, gem_type)
 
         base_img = self.sprites[self.gem_type][0]
@@ -214,7 +280,9 @@ class PurpleGem(CollectibleGem):
 
         Args:
             enemies_group (Group): Pygame Group of enemies to test collisions with.
+            obstacle_list (list): List of obstacle objects to test collisions with.
         """
+
         self.position += self.velocity
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
@@ -237,6 +305,22 @@ class PurpleGem(CollectibleGem):
 
 
 class Hazard(pygame.sprite.Sprite):
+    """
+    A collidable hazard in the game world that damages the player on contact.
+    There are two types of hazards for now: saws and spikes.
+
+    Attributes:
+        ANIMATION_DELAY (int): Delay in frames between sprite animations.
+
+        sprites (dict): The sprite sheets for hazards.
+        hazard_type (str): Type of hazard ("saw" or "spikes") based on the tile number from processing world data.
+        img (Surface): Current image/sprite of the hazard.
+        position (Vector2): Current position of the hazard.
+        rect (Rect): Rectangular area representing the hazard's position and size.
+        mask (Mask): Pixel-perfect collision mask for the hazard.
+        animation_count (int): Counter for animation frame updates.
+        is_hazard (bool): Flag indicating this object is a hazard.
+    """
 
     ANIMATION_DELAY = 5
 
@@ -250,6 +334,7 @@ class Hazard(pygame.sprite.Sprite):
             sprites (dict): the sprite sheets for hazards.
             tile_number (int): the tile number when processing data in World class.
         """
+
         super().__init__()
 
         self.sprites = sprites
@@ -285,13 +370,18 @@ class Hazard(pygame.sprite.Sprite):
     def draw(self, win):
         """
         Draw the hazard on the provided surface.
+
+        Args:
+            win (Surface): Pygame Surface to draw the hazard on.
         """
+
         win.blit(self.img, self.rect)
 
     def update_sprite(self):
         """
         Update hazard sprite animation frame.
         """
+
         sprite_sheet_name = self.hazard_type
         
         if sprite_sheet_name in self.sprites:
@@ -301,18 +391,32 @@ class Hazard(pygame.sprite.Sprite):
 
         self.animation_count += 1
 
-    def update(self, player):
+    def update(self):
         """
-        Update hazard position/mask and deals damage to the player if player collides with it. 
+        Update hazard position and mask. As for damage to player, that is handled in the Player class. 
+        """
 
-        Args:
-            player (Player): Player object used to detect collision.
-        """
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
 
 class GameFlag(pygame.sprite.Sprite):
+    """
+    A flag (literal one) that acts as a checkpoint or level end point in the game.
+
+    Attributes:
+        ANIMATION_DELAY (int): Delay in frames between sprite animations.
+
+        sprites (dict): The sprite sheets for flags.
+        flag_type (str): Type of flag ("Checkpoint_Flag_Idle1" or "Pointer_Idle") based on the tile number from processing world data.
+        img (Surface): Current image/sprite of the flag.
+        position (Vector2): Current position of the flag.
+        rect (Rect): Rectangular area representing the flag's position and size.
+        mask (Mask): Pixel-perfect collision mask for the flag.
+        animation_count (int): Counter for animation frame updates.
+        is_checkpoint (bool): A flag indicating this is a checkpoint flag.
+        is_level_end (bool): A flag indicating this is a level end flag.
+    """
 
     ANIMATION_DELAY = 5
 
@@ -355,13 +459,18 @@ class GameFlag(pygame.sprite.Sprite):
     def draw(self, win):
         """
         Draw the flag on the provided surface.
+
+        Args:
+            win (Surface): Pygame Surface to draw the flag on.
         """
+
         win.blit(self.img, self.rect)
 
     def update_sprite(self):
         """
         Update flag sprite animation frame.
         """
+
         sprite_sheet_name = self.flag_type
         
         if sprite_sheet_name in self.sprites:
@@ -378,20 +487,21 @@ class GameFlag(pygame.sprite.Sprite):
         Args:
             player (Player): Player object used to detect collision.
         """
+
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
         if self.collide(player):
             if player.alive:
                 if self.flag_type == "Checkpoint_Flag_Idle1":
-                    player.last_checkpoint = (self.rect.x, self.rect.y - TILE_SIZE)
+                    player.last_checkpoint = (self.rect.x, self.rect.y)
                 elif self.flag_type == "Pointer_Idle":
                     player.reached_level_end = True
 
 
 class Pearl(pygame.sprite.Sprite):
     """
-    Pearl projectile used by Seashell enemies.
+    Pearl projectile used by Seashell enemies as ammo for firing at the player.
 
     Attributes:
         ANIMATION_DELAY (int): Delay in frames between sprite animations.
@@ -413,12 +523,14 @@ class Pearl(pygame.sprite.Sprite):
     def __init__(self, x, y, sprites, direction):
         """
         Initialise a Pearl used by Seashell enemies as ammo.
+
         Args:
             x (float): X-coordinate of the pearl's position.
             y (float): Y-coordinate of the pearl's position.
             sprites (dict): Sprite frames for cannon ball animations.
             direction (Vector2): Direction vector for movement.
         """
+
         super().__init__()
 
         self.sprites = sprites
@@ -452,13 +564,21 @@ class Pearl(pygame.sprite.Sprite):
     def draw(self, win):
         """
         Draw the pearl on the given surface.
+
+        Args:
+            win (Surface): Surface to draw the pearl on.
         """
+
         win.blit(self.img, self.rect)
 
     def start_explosion(self, player):
         """
         Transition the pearl to exploding state and reset animation counter.
+
+        Args:
+            player (Player): Player object to center the explosion on.
         """
+
         self.state = "exploding"
         self.animation_count = 0
 
@@ -473,8 +593,9 @@ class Pearl(pygame.sprite.Sprite):
 
     def update_sprite(self):
         """
-        Advance the pearl animation frame.
+        Advance the pearl animation frame. Can be either flying or exploding.
         """
+
         if self.state == "flying":
             sprite_sheet_name = "Pearl Idle"
         else:
@@ -496,11 +617,13 @@ class Pearl(pygame.sprite.Sprite):
 
     def update(self, player, obstacle_list):
         """
-        Move the pearl and check collisions with the player and screen bounds.
+        Move the pearl and check collisions with the player, obstacles and screen bounds.
 
         Args:
             player (Player): Player object to test collision against.
+            obstacle_list (list): List of obstacle objects to test collisions with.
         """
+
         if self.state == "flying":
             self.position += self.velocity
             self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -524,7 +647,7 @@ class Pearl(pygame.sprite.Sprite):
 
 class CannonBall(pygame.sprite.Sprite):
     """
-    CannonBall projectile used by FierceTooth enemies.
+    CannonBall projectile used by FierceTooth enemies as ammo for shooting at the player.
 
     Attributes:
         ANIMATION_DELAY (int): Delay in frames between sprite animations.
@@ -553,6 +676,7 @@ class CannonBall(pygame.sprite.Sprite):
             sprites (dict): Sprite frames for cannon ball animations.
             direction (Vector2): Direction vector for movement.
         """
+
         super().__init__()
 
         self.sprites = sprites
@@ -586,13 +710,21 @@ class CannonBall(pygame.sprite.Sprite):
     def draw(self, win):
         """
         Draw the cannon ball on the given surface.
+
+        Args:
+            win (Surface): Surface to draw the cannon ball on.
         """
+
         win.blit(self.img, self.rect)
 
     def start_explosion(self, player):
         """
         Transition the cannon ball to exploding state and reset animation counter.
+
+        Args:
+            player (Player): Player object to center the explosion on.
         """
+
         self.state = "exploding"
         self.animation_count = 0
 
@@ -607,8 +739,9 @@ class CannonBall(pygame.sprite.Sprite):
 
     def update_sprite(self):
         """
-        Advance the cannon ball animation frame.
+        Advance the cannon ball animation frame. Can be either flying or exploding.
         """
+
         if self.state == "flying":
             sprite_sheet_name = "Cannon Ball Flying"
         else:
@@ -630,11 +763,13 @@ class CannonBall(pygame.sprite.Sprite):
         
     def update(self, player, obstacle_list):
         """
-        Move the cannon ball and check collisions with the player and screen bounds.
+        Move the cannon ball and check collisions with the player, obstacles and screen bounds.
 
         Args:
             player (Player): Player object to test collision against.
+            obstacle_list (list): List of obstacle objects to test collisions with.
         """
+
         if self.state == "flying":
             self.position += self.velocity
             self.rect.topleft = (int(self.position.x), int(self.position.y))
@@ -659,17 +794,7 @@ class CannonBall(pygame.sprite.Sprite):
 
 class Grenade(pygame.sprite.Sprite):
     """
-    Thrown grenade with arc, horizontal drag, timed explosion and blast animation.
-
-    Behaviour:
-    - On creation the grenade receives an initial horizontal velocity from `direction.x * THROW_SPEED`
-      and an initial upward velocity (`THROW_VY`). Gravity integrates the vertical motion.
-    - Horizontal velocity is multiplied by `X_DRAG` each frame until it falls below STOP_THRESHOLD.
-    - After `timer` frames the grenade transitions to `blast` state:
-        - Explosion sprite is anchored so its bottom matches the grenade bottom.
-        - Explosion animation plays; when frames finish it holds the last frame for BLAST_DURATION frames.
-        - Blast damage (pixel-perfect) is applied once at the start of the blast (uses mask overlap).
-        - After BLAST_DURATION expires the sprite is removed via `kill()`.
+    A Grenade that can be thrown with an arc, horizontal drag, timed explosion and blast animation.
 
     Attributes:
         GRAVITY (float): Gravity strength affecting the grenade falling.
@@ -683,6 +808,7 @@ class Grenade(pygame.sprite.Sprite):
         ANIMATION_DELAY (int): Delay in frames between sprite animations.
         SPIN_FACTOR (float): Factor for rotation speed based on horizontal velocity.
         BLAST_DURATION (int): Duration in frames for which the blast remains visible.
+        MAX_CHARGE_MULTIPLIER (float): Maximum multiplier for throw strength.
 
         sprites (dict): Sprite frames for grenade and explosion animations.
         base_img (Surface): Current image/sprite of the grenade.
@@ -690,6 +816,8 @@ class Grenade(pygame.sprite.Sprite):
         position (Vector2): Current position of the grenade.
         velocity (Vector2): Current velocity of the grenade.
         direction (Vector2): Direction vector for initial throw.
+        roll_decel (float): Horizontal deceleration when rolling.
+        roll_stop_threshold (float): Minimum horizontal velocity to stop rolling.
         rect (Rect): Rectangular area representing the grenade's position and size.
         mask (Mask): Pixel-perfect collision mask for the grenade.
         animation_count (int): Counter for animation frame updates.
@@ -697,10 +825,11 @@ class Grenade(pygame.sprite.Sprite):
         timer (int): Countdown timer until explosion.
         blast_timer (int): Countdown timer for visible blast duration.
         _blast_applied (bool): Internal flag to ensure blast damage is applied only once.
+
         is_grenade (bool): Proving that this object is a Grenade.
     """
 
-    GROUND_Y = 400
+    # GROUND_Y = 400   # temporary ground level 
     GRAVITY = 0.7
     BOUNCE_DAMPING_Y = 0.35
     MIN_BOUNCE_VY = 1.2
@@ -760,9 +889,26 @@ class Grenade(pygame.sprite.Sprite):
         self.is_grenade = True
 
     def draw(self, win):
+        """
+        Draw the grenade on the provided surface.
+
+        Args:
+            win (Surface): Pygame Surface to draw the grenade on.
+        """
+
         win.blit(self.img, self.rect)
 
     def collide(self, obj):
+        """
+        Check pixel-perfect collision between this grenade and another sprite using masks.
+
+        Args:
+            obj (Sprite): Other sprite to test collision against.
+
+        Returns:
+            bool: True if collision occurred, False otherwise.
+        """
+
         if self.rect.colliderect(obj.rect):
             offset_x = obj.rect.x - self.rect.x
             offset_y = obj.rect.y - self.rect.y
@@ -773,6 +919,7 @@ class Grenade(pygame.sprite.Sprite):
         """
         Switch to blast state, anchor explosion bottom to grenade bottom, update mask and set blast timer.
         """
+
         midbottom = self.rect.midbottom
 
         explosion_fx.play()
@@ -793,7 +940,9 @@ class Grenade(pygame.sprite.Sprite):
     def update_sprite(self):
         """
         Advance animation; for blast state play frames then hold last frame while blast_timer counts down.
+        The Grenade is also being rotated while thrown.
         """
+
         if self.state == "thrown":
             sheet = "Grenade Idle"
         else:
@@ -825,10 +974,13 @@ class Grenade(pygame.sprite.Sprite):
 
     def update(self, player, enemies_group, obstacle_list):
         """
-        Update grenade every frame.
-        - While thrown: integrate physics and count down timer.
-        - When timer hits 0: call start_explosion() and apply blast damage once.
-        - While in blast: apply damage once and count down blast_timer, then kill().
+        Update this grenade's position, velocity, state, and handle explosion blast damage.
+        Handles collision with obstacles too. 
+
+        Args:
+            player (Player): Player object to test blast damage against.
+            enemies_group (Group): Pygame Group of enemies to test blast damage against.
+            obstacle_list (list): List of obstacle objects to test collisions with.
         """
 
         if self.state == "thrown":

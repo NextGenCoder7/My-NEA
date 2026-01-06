@@ -22,9 +22,14 @@ pygame.display.set_caption(TITLE)
 
 class ScreenFade:
     """
-    Draw screen fades (fade out and in) for when the user changes screen.
+    Draw screen fades (fade out and in) for when the user changes screen. 
 
-    Please note, this ScreenFade class has been fully coded by AI. 
+    Attributes:
+        w (int): Width of the screen.
+        h (int): Height of the screen.
+        duration_ms (int): Duration of the fade effect in milliseconds.
+
+    Please note, this ScreenFade class has been fully coded by AI.
     """
 
     def __init__(self, width: int, height: int, duration_ms: int=500):
@@ -55,6 +60,7 @@ class ScreenFade:
         """
         Corners close in to black.
         """
+
         elapsed = 0
         while elapsed < self.duration_ms:
             for event in pygame.event.get():
@@ -74,6 +80,7 @@ class ScreenFade:
         """
         Corners open from black to reveal the screen.
         """
+
         elapsed = 0
         while elapsed < self.duration_ms:
             for event in pygame.event.get():
@@ -88,8 +95,22 @@ class ScreenFade:
 
 
 class Camera:
+    """
+    The class that is responsible for scrolling the game window when the player reaches within
+    a certain range to the left or right of the visible screen. It also ensures the camera doesn't scroll past
+    the end of the level
+    """
 
     def __init__(self, screen_width: int, world_width: int, scroll_area: int):
+        """
+        Initialise a Camera object. 
+
+        Args:
+            screen_width (int): The visible screen's width.
+            world_width (int): Maximum length of the level (cols). 
+            scroll_area (int): Distance from edge of screen where scrolling needs to happen if player is there. 
+        """
+
         self.screen_width = screen_width
         self.world_width = world_width
         self.scroll_area = scroll_area
@@ -104,6 +125,34 @@ class Camera:
 
 
 class World:
+    """
+    The class that is responsible for creating the game world from level data, populating it with game objects,
+    and drawing the world to the screen.
+
+    Attributes:
+        GEM_SPRITES (list): Sprite sheet for collectible gems.
+        HAZARD_SPRITES (list): Sprite sheet for hazards.
+        FLAG_SPRITES (list): Sprite sheet for flags.
+        GRENADE_SPRITES (list): Sprite sheet for player grenades.
+        CANNON_BALL_SPRITES (list): Sprite sheet for cannon balls.
+        PEARL_SPRITES (list): Sprite sheet for seashell pearls.
+
+        self.img_list (list): List of tile images.
+        self.obstacle_group (pygame sprite Group): Group of obstacle sprites.
+        self.fiercetooth_group (pygame sprite Group): Group of FierceTooth enemy sprites.
+        self.pink_star_group (pygame sprite Group): Group of PinkStar enemy sprites.
+        self.seashell_group (pygame sprite Group): Group of SeashellPearl enemy sprites.
+        self.collectible_gem_group (pygame sprite Group): Group of collectible gem sprites.
+        self.hazard_group (pygame sprite Group): Group of hazard sprites.
+        self.constraint_rect_group (pygame sprite Group): Group of constraint rectangle sprites.
+        self.grenade_box_group (pygame sprite Group): Group of grenade box sprites.
+        self.checkpoint_group (pygame sprite Group): Group of checkpoint flag sprites.
+
+        self.player_ammo_group (pygame sprite Group): Group of player ammo sprites.
+        self.player_grenade_group (pygame sprite Group): Group of player grenade sprites.
+        self.cannon_ball_group (pygame sprite Group): Group of cannon ball sprites.
+        self.pearl_group (pygame sprite Group): Group of seashell pearl sprites.     
+    """
 
     GEM_SPRITES = load_collidable_objects_sprite_sheets(16, 16, "gem")
     HAZARD_SPRITES = load_collidable_objects_sprite_sheets(48, 50, "hazard")
@@ -113,6 +162,13 @@ class World:
     PEARL_SPRITES = load_ammo_sprites('Seashell Pearl')
 
     def __init__(self, img_list):
+        """
+        Initialise the World object with the provided tile images.
+
+        Args:
+            img_list (list): List of tile images.
+        """
+
         self.img_list = img_list
         self.obstacle_group = pygame.sprite.Group()
         self.fiercetooth_group = pygame.sprite.Group()
@@ -141,7 +197,8 @@ class World:
             pygame sprite groups: these are sprite groups for various types of objects.
             sprite sheets: these are the loaded sprite sheets for gems, hazards, grenades, cannon balls, and pearls.
         """
-        self.level_length = len(data[0])
+
+        end_flag_col = -1
 
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
@@ -169,6 +226,7 @@ class World:
                     elif tile == 17 or tile == 28:     # flag tiles, level end flag and checkpoint flags
                         if tile == 17:
                             self.level_end_flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 33, self.FLAG_SPRITES, tile)
+                            end_flag_col = max(end_flag_col, x)
                         elif tile == 28:
                             flag = GameFlag(x * TILE_SIZE, y * TILE_SIZE - 33, self.FLAG_SPRITES, tile)
                             self.checkpoint_group.add(flag)
@@ -180,7 +238,6 @@ class World:
                         fiercetooth_enemy = FierceTooth(x * TILE_SIZE, y * TILE_SIZE, 2, FIERCETOOTH_SPRITES, 80, True) 
                         fiercetooth_enemy.obj_id = f"enemy:ft:{x}:{y}"
                         self.fiercetooth_group.add(fiercetooth_enemy)               
-                        # print(f"[WORLD] Spawn FierceTooth tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
                         pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 100)
@@ -191,7 +248,6 @@ class World:
                         seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True) 
                         seashell_pearl_enemy.obj_id = f"enemy:ss:{x}:{y}" 
                         self.seashell_group.add(seashell_pearl_enemy)               
-                        # print(f"[WORLD] Spawn Seashell tile at ({x},{y}) -> pos=({x * TILE_SIZE},{y * TILE_SIZE})")
                     elif tile >= 22 and tile <= 24:    # collectible gem tiles: player_ammo, player_health, coins
                         collectible_gem = CollectibleGem(x * TILE_SIZE, y * TILE_SIZE, self.GEM_SPRITES, tile)
                         collectible_gem.obj_id = f"gem:{x}:{y}:{tile}"
@@ -205,6 +261,11 @@ class World:
                         grenade_box = GrenadeBox(x * TILE_SIZE, y * TILE_SIZE, grenade_box_img)
                         grenade_box.obj_id = f"gbox:{x}:{y}"
                         self.grenade_box_group.add(grenade_box)
+        
+        if end_flag_col >= 0:
+            self.level_length = end_flag_col + 1
+        else:
+            self.level_length = len(data[0])
 
         self.danger_zones = compute_danger_zones(self.constraint_rect_group)
 
@@ -213,8 +274,17 @@ class World:
         self.GEM_SPRITES, self.GRENADE_SPRITES, self.CANNON_BALL_SPRITES, self.PEARL_SPRITES
 
     def draw_world(self, bg1, camera: Camera, win):
+        """
+        Draw the game world to the screen, adjusting for camera scroll.
+
+        Args:
+            bg1 (Surface): Background image surface.
+            camera (Camera): Camera object for scrolling.
+            win (Surface): Main game window surface.
+        """
+
         draw_bg(bg1, win, camera.scroll)
-        # pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor
+        # pygame.draw.line(win, RED, (0, 400), (WIDTH, 400))   # temporary floor 
 
         shifted = []
         def _shift_rect(obj, attr_name, dx):
@@ -328,9 +398,11 @@ class World:
 def draw_main_menu(win):
     """
     Draw the main menu screen.
+
     Args:
         win (Surface): Main game window surface.
     """
+
     win.fill(ORANGE)
     draw_text("Main Menu", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
 
@@ -346,9 +418,11 @@ def draw_main_menu(win):
 def draw_instructions_page(win):
     """
     Draw the instructions and tips page.
+
     Args:
         win (Surface): Main game window surface.
     """
+
     win.fill(PINK)
 
     draw_text("Instructions and Tips", 'Comicsans', 50, WHITE, win, 1, 7, center_x=True)
@@ -368,11 +442,19 @@ def draw_instructions_page(win):
         "Reach the end flag and make sure to press enter to complete the level.",
         "Good luck and have fun!"
     ]
+
     for i, line in enumerate(instructions):
         draw_text(line, 'Comicsans', 20, WHITE, win, 30, 90 + i * 40)
 
 
 def build_level_buttons():
+    """
+    Create and return a list of level selection buttons for the levels page.
+
+    Returns:
+        list: List of Button objects for level selection.
+    """
+
     buttons = []
     cols = 8
     spacing_x = 100
@@ -395,9 +477,11 @@ def build_level_buttons():
 def draw_levels_page(win, bg1):
     """
     Draw the levels selection page.
+
     Args:
         win (Surface): Main game window surface.
     """
+
     bg1 = pygame.transform.scale(bg1, (WIDTH, HEIGHT))
     win.blit(bg1, (0, 0))
 
@@ -406,7 +490,7 @@ def draw_levels_page(win, bg1):
 
 def draw_stats_page(win):
     """
-    Render total stats and latest per-level progress.
+    Render and draw the total stats, latest per-level progress and best per-level stats after completion.
     """
 
     win.fill((20, 30, 40))
@@ -454,6 +538,17 @@ def draw_stats_page(win):
 
 
 def start_level(level_num):
+    """
+    Start and build the specified level. This will first process the level layout data to create game objects,
+    then set up the camera and level information. 
+
+    Args:
+        level_num (int): The level number to start.
+
+    Returns:
+        tuple: Contains the World object, level info and world data such as player object, various sprite groups and sprite sheets.
+    """
+
     world_data = load_level(level_num)
     tile_images = load_tile_images()
     world = World(tile_images)
@@ -467,6 +562,10 @@ def start_level(level_num):
     camera = Camera(WIDTH, level_world_width, SCROLL_AREA_WIDTH)
     enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group)
     level_info = Level(player, world_data)
+    level_info.killed_enemy_ids = set()
+    level_info.collected_ids = set()
+    level_info.prev_coin_count = player.coin_count
+    level_info.prev_enemy_kills = 0
     return (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
             fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
             collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
@@ -479,6 +578,42 @@ def apply_saved_progress(selected_level, world, level_info, obstacle_list, playe
                          pink_star_group, seashell_group, pearl_group, collectible_gem_group, hazard_group,
                          constraint_rect_group, danger_zones, grenade_box_group, checkpoint_group,
                          GEM_SPRITES, GRENADE_SPRITES, CANNON_BALL_SPRITES, PEARL_SPRITES, camera, enemies):
+    """
+    Apply saved progress from the database to the current level state.
+
+    Args:
+        selected_level (int): The level number to load progress for.
+        world (World): The World object containing game objects.
+        level_info (Level): The Level object containing level information.
+        obstacle_list (pygame sprite Group): Group of obstacle sprites.
+        player (Player): The Player object.
+        level_end_flag (GameFlag): The level end flag object.
+        player_ammo_group (pygame sprite Group): Group of player ammo sprites.
+        player_grenade_group (pygame sprite Group): Group of player grenade sprites.
+        fiercetooth_group (pygame sprite Group): Group of FierceTooth enemy sprites.
+        cannon_ball_group (pygame sprite Group): Group of cannon ball sprites.
+        pink_star_group (pygame sprite Group): Group of PinkStar enemy sprites.
+        seashell_group (pygame sprite Group): Group of SeashellPearl enemy sprites.
+        pearl_group (pygame sprite Group): Group of seashell pearl sprites.
+        collectible_gem_group (pygame sprite Group): Group of collectible gem sprites.
+        hazard_group (pygame sprite Group): Group of hazard sprites.
+        constraint_rect_group (pygame sprite Group): Group of constraint rectangle sprites.
+        danger_zones (list): List of danger zones in the level.
+        grenade_box_group (pygame sprite Group): Group of grenade box sprites.
+        checkpoint_group (pygame sprite Group): Group of checkpoint flag sprites.
+        GEM_SPRITES (list): Sprite sheet for collectible gems.
+        GRENADE_SPRITES (list): Sprite sheet for player grenades.
+        CANNON_BALL_SPRITES (list): Sprite sheet for cannon balls.
+        PEARL_SPRITES (list): Sprite sheet for seashell pearls.
+        camera (Camera): Camera object for scrolling.
+        enemies (list): List of all enemy objects in the level.
+
+    Returns:
+        tuple: Updated level state with applied progress.
+        World: The World object.
+        Level_info: The Level info object.
+    """
+
     progress = load_level_progress(selected_level)
 
     player.coin_count = progress["coin_count"]
@@ -500,6 +635,16 @@ def apply_saved_progress(selected_level, world, level_info, obstacle_list, playe
     level_info.collected_ids = set(progress["collected_ids"])
     level_info.killed_enemy_ids = set(progress["killed_enemy_ids"])
     level_info.deaths = progress.get("deaths", 0)
+
+    if player.health is None or player.health <= 0:
+        player.health = max(1, player.max_health // 2)
+        player.alive = True
+        player.death_timer = 0
+        if hasattr(player, "death_anim_started"):
+            player.death_anim_started = False
+
+    level_info.prev_coin_count = player.coin_count
+    level_info.prev_enemy_kills = len(level_info.killed_enemy_ids)
 
     for gem in list(collectible_gem_group):
         if getattr(gem, "obj_id", None) in level_info.collected_ids:
@@ -525,9 +670,11 @@ def apply_saved_progress(selected_level, world, level_info, obstacle_list, playe
 def draw_death_screen(win):
     """
     Draw the death screen when the player dies.
+
     Args:
         win (Surface): Main game window surface.
     """
+
     win.fill(RED)
     draw_text("You Died!", 'Comicsans', 50, WHITE, win, 1, 10, center_x=True)
     text = "Click Restart to remove all level data and try again from the start of the level"
@@ -539,9 +686,11 @@ def draw_death_screen(win):
 def draw_next_level_screen(win):
     """
     Draw the next level screen when the player completes a level.
+
     Args:
         win (Surface): Main game window surface.
     """
+
     win.fill(GREEN)
     draw_text("Level Complete!", 'Comicsans', 50, WHITE, win, 1, 10, center_x=True)
     text = "Click Restart to remove all level data and try again from the start of the level"
@@ -552,11 +701,12 @@ def draw_next_level_screen(win):
 
 def main(win):
     """
-    Main function to run the playing game loop.
+    Main function to run the playing game loop. Handles game states, user input, and rendering.
 
     Args:
         win (Surface): Main game window surface.
     """
+
     clock = pygame.time.Clock()
 
     selected_level = 1
@@ -584,11 +734,6 @@ def main(win):
 
     fader = ScreenFade(WIDTH, HEIGHT, duration_ms=1250)
 
-    scroll_left = False
-    scroll_right = False
-    scroll = 0
-    scroll_speed = 1
-
     main_menu = True
     instructions_page = False
     levels_page = False
@@ -600,6 +745,7 @@ def main(win):
     run = True
     while run:
         clock.tick(FPS)
+        dt_seconds = clock.get_time() / 1000.0
 
         if main_menu:
             mute_music()
@@ -715,7 +861,7 @@ def main(win):
                     if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
                         enemy.fire(PEARL_SPRITES, pearl_group)
                         enemy.was_hit_from_behind = False
-                else:   # doesn't need a handle death method since it never moves from its spot anyway
+                else:   
                     if hasattr(enemy, "obj_id") and hasattr(level_info, "killed_enemy_ids"):
                         level_info.killed_enemy_ids.add(enemy.obj_id)
 
@@ -753,16 +899,12 @@ def main(win):
                 if player.collide(level_end_flag):
                     if keys[pygame.K_RETURN]:
                         player.reached_level_end = True
-                        update_totals(
-                            delta_coins=player.coin_count,
-                            delta_enemies=len(getattr(level_info, "killed_enemy_ids", [])),
-                            delta_time=level_info.time_taken
-                        )
+                        killed_count = len(level_info.killed_enemy_ids)
                         update_best_stats(
                             selected_level,
                             deaths=level_info.deaths,
                             coins=player.coin_count,
-                            enemies=len(getattr(level_info, "killed_enemy_ids", [])),
+                            enemies=killed_count,
                             time_taken=level_info.time_taken
                         )
                         reset_level_progress(selected_level)         
@@ -771,11 +913,6 @@ def main(win):
                         next_level_screen = True
                         draw_next_level_screen(win)
                         fader.fade_in(win, clock)
-
-                if scroll_left and scroll > 0:
-                    scroll -= 5 * scroll_speed
-                if scroll_right and scroll < (MAX_COLS * TILE_SIZE) - WIDTH:
-                    scroll += 5 * scroll_speed
             else:
                 if player.death_timer < player.death_duration:
                     player.death_timer += 1
@@ -816,7 +953,7 @@ def main(win):
                 gem.update_sprite()
 
             for hazard in hazard_group:
-                hazard.update(player)
+                hazard.update()
                 hazard.update_sprite()
 
             for flag in checkpoint_group:
@@ -829,6 +966,21 @@ def main(win):
             world.draw_world(bg1, camera, win)
 
             level_info.update_time()
+
+            killed_count = len(level_info.killed_enemy_ids)
+            delta_coins = max(0, player.coin_count - level_info.prev_coin_count)
+            delta_enemies = max(0, killed_count - level_info.prev_enemy_kills)
+            
+            if delta_coins or delta_enemies or dt_seconds > 0:
+                update_totals(
+                    delta_coins=delta_coins,
+                    delta_enemies=delta_enemies,
+                    delta_time=dt_seconds
+                )
+
+            level_info.prev_coin_count = player.coin_count
+            level_info.prev_enemy_kills = killed_count
+
             save_level_progress(selected_level, {
                 "last_checkpoint": player.last_checkpoint,
                 "coin_count": player.coin_count,

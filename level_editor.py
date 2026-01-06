@@ -19,10 +19,10 @@ def draw_grid(win, scroll):
         win (Surface): Surface to draw the grid on.
         scroll (int): Horizontal scroll offset used to offset vertical grid lines.
     """
-    # vertical lines
+
     for c in range(MAX_COLS + 1):
         pygame.draw.line(win, WHITE, (c * TILE_SIZE - scroll, 0), (c * TILE_SIZE - scroll, HEIGHT))
-    # horizontal lines
+
     for r in range(ROWS + 1):
         pygame.draw.line(win, WHITE, (0, r * TILE_SIZE), (WIDTH, r * TILE_SIZE))
 
@@ -31,8 +31,20 @@ def draw_window(win, bg1, scroll, current_tile, save_button, load_button, level,
     """
     Render the level editor window including background, grid, tiles, and UI.
 
-    Returns the potentially-updated current_tile and world_data.
+    Args:
+        win (Surface): Surface to draw the grid on.
+        bg1 (img): The background image to draw.
+        current_tile: The most recently selected tile which the user clicked on.
+        save_button (Button): Save button and image.
+        load_button (Button): Load button and image.
+        level (int): the current level number the user is designing.
+        buttons_list (Button, List): All the game tile buttons at the right side margin.
+        world_data (List): A 2D list that represents the level and its tile contents.
+        img_list (List): All the images used as tiles in the game levels for the level editor.
+
+    Returns the updated current_tile and world_data.
     """
+
     draw_bg(bg1, win, scroll)
     
     draw_grid(win, scroll)
@@ -78,7 +90,7 @@ def main_level_editor():
     """
     Main loop for the level editor UI.
 
-    Handles input, scrolling, and editing world_data which represents the tile map.
+    This handles input, scrolling, and editing world_data which represents the tile map.
     """
     clock = pygame.time.Clock()
 
@@ -119,7 +131,7 @@ def main_level_editor():
         r = [-1] * MAX_COLS
         world_data.append(r)
 
-    if level == 0:    # gonna create and use this one for testing game features during analysis
+    if level == 0:    
         for tile in range(0, MAX_COLS):
             world_data[ROWS - 1][tile] = 0
 

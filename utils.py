@@ -1,5 +1,3 @@
-# This file contains utility functions for the game
-
 import pygame
 import json
 from constants import *
@@ -21,6 +19,7 @@ def load_image(filename, dir1, dir2=None, dir3=None):
     Returns:
         Surface: Pygame Surface loaded with convert_alpha().
     """
+
     if dir3 is not None:
         return pygame.image.load(join('assets', dir1, dir2, dir3, f"{filename}.png")).convert_alpha()
     elif dir2 is not None:
@@ -32,7 +31,14 @@ def load_image(filename, dir1, dir2=None, dir3=None):
 def flip(sprites):
     """
     Return a new list of surfaces horizontally flipped from the input list.
+
+    Args:
+        sprites (dict): Dictionary of sprites to flip horizontally.
+
+    Returns:
+        dict: every sprite in sprites Dictionary is horizontally flipped
     """
+
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
 
@@ -50,6 +56,7 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
     Returns:
         dict: Mapping of sprite names to lists of scaled frames.
     """
+
     path = join("assets", dir1, dir2)
     images = [f for f in listdir(path) if isfile(join(path, f))]
 
@@ -79,7 +86,7 @@ def load_player_sprite_sheets(dir1, dir2, width, height, direction=False):
 def load_collidable_objects_sprite_sheets(width, height, object_type):         # TODO, add choice for hazards (saw and spikes)
     """
     Loads gem, hazard and flag sprite sheets from the assets folder and returns dictionaries of frames.
-    Aside from the weapons and ammo these are the collidable objects for the player in the game.
+    Aside from the grenades and ammo projectiles, these are the collidable objects for the player in the game.
 
     Args:
         width (int): Width of each frame in source sprite sheets.
@@ -136,6 +143,7 @@ def draw_bg(bg1, win, scroll):
         win (Surface): Window surface to draw onto.
         scroll (float): Current horizontal scroll value used for parallax.
     """
+
     for x in range(10):
         bg1_scaled = pygame.transform.scale(bg1, (WIDTH, HEIGHT))
         win.blit(bg1_scaled, ((x * WIDTH) - scroll * 0.1, 0))
@@ -171,6 +179,7 @@ def draw_text(text, fontname, size, color, win, x, y, bold=False, center_x=False
         win (Surface): Surface to draw on.
         x (int): X position.
         y (int): Y position.
+        center_x (bool): Whether to horizontally center the text or not (if so then x doesn't matter).
     """
 
     font = pygame.font.SysFont(fontname, size, bold)
@@ -185,6 +194,13 @@ def draw_text(text, fontname, size, color, win, x, y, bold=False, center_x=False
 def load_ammo_sprites(character):
     """
     Load enemy ammo sprites from individual files for each animation frame.
+    The player, Fierce Tooth and Seashell Pearl characters have ammo, whilst Pink Star enemies do not. 
+
+    Args:
+        character (str): Character name to load ammo sprites for.
+
+    Returns:
+        dict: Dictionary mapping animation names to lists of sprites.
     """
 
     if character == "Fierce Tooth" or character == "Seashell Pearl":
@@ -194,7 +210,6 @@ def load_ammo_sprites(character):
 
     all_sprites = {}
     
-    # Animation folders to load
     if character == "Fierce Tooth":
         animations = ["Cannon Ball Flying", "Cannon Ball Explosion", "Cannon Ball Destroyed"]
     elif character == "Seashell Pearl":
@@ -236,7 +251,17 @@ def load_ammo_sprites(character):
 def load_enemy_sprites(enemy_type, width, height):
     """
     Load enemy sprites from individual files for each animation frame.
+    The enemies used for this project are Fierce Tooth, Pink Star and Seashell Pearl.
+
+    Args:
+        enemy_type (str): Enemy type to load sprites for.
+        width (int): Width of each frame in source sprite sheets.
+        height (int): Height of each frame in source sprite sheets.
+
+    Returns:
+        dict: Dictionary mapping animation names to lists of sprites.
     """
+
     path = join("assets", "Enemies", enemy_type)
     all_sprites = {}
     
@@ -272,6 +297,17 @@ def load_enemy_sprites(enemy_type, width, height):
 
 
 def load_level(level_num):
+    """
+    Load level data from a JSON file into a 2D list. This represents the tile layout of the level,
+    used in the level editor.
+
+    Args:
+        level_num (int): Level number to load.
+
+    Returns:
+        list: 2D list representing the level's tile data.
+    """
+
     world_data = []
 
     for row in range(ROWS):
@@ -289,6 +325,13 @@ def load_level(level_num):
 
 
 def load_tile_images():
+    """
+    Load tile images for the level editor and return them as a list.
+
+    Returns:
+        list: List of Pygame Surfaces representing tile images.
+    """
+
     img_list = []
     for x in range(TILE_TYPES):
         img = load_image(f'{x + 1}', 'Level Editor Tiles')

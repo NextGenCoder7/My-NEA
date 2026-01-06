@@ -18,25 +18,39 @@ class FierceTooth(Enemy):
         TURN_COOLDOWN (int): Cooldown time for turning direction in frames.
         SUPPRESS_TURN_DURATION (int): Duration to suppress random turns after losing vision.
 
+        death_fall_speed_cap (int): Maximum fall speed after death.
+        death_handled (bool): Whether death fall handling is complete.
+
         vision_range (int): The range of the enemy's vision.
         vision_angle (int): The angle of the enemy's vision.
         player_in_vision (bool): Whether the player is in the enemy's vision.
+
         shoot_cooldown (int): The cooldown time for the enemy's shooting.
+
         attack_range (int): The range of the enemy's attack.
         attack_cooldown (int): The cooldown time for the enemy's attack.
         attacking (bool): Whether the enemy is attacking.
         attack_recovery_timer (int): The timer for the enemy's attack recovery.
         attack_recovery_duration (int): The duration of the enemy's attack recovery.
         post_attack_recovery (bool): Whether the enemy is in post-attack recovery.
+
         smartmode (bool): Whether the enemy uses advanced AI behaviors.
         recently_lost_vision_timer (int): Timer for recently lost vision state.
         recheck_turn_timer (int): Timer for rechecking turn after losing vision.
         dodge_cooldown (int): The cooldown time for the enemy's dodge.
         grenade_flee_timer (int): Timer for fleeing from grenades.
+
         turn_cooldown (int): Cooldown timer for turning direction.
         suppress_random_turns_timer (int): Timer to suppress random turns.
+        last_chase_direction (string|None): Last known chase direction after losing vision.
+        continue_chase_timer (int): Timer for continuing chase after losing vision.
+        continue_chase_duration (int): Duration to continue chase after losing vision.
+        pursuing_purple_rect (ConstraintRect|None): The purple rect being pursued for jumping.
+        delayed_turn_duration (int): Duration to delay turning after losing vision.
+
         was_hit_from_behind (bool): Whether the enemy was hit from behind.
         hit_anim_timer (int): Timer for Fiercetooth's hit animation.
+
         enemy_type (string): Showing the enemy species is Fiercetooth.
     """
 
@@ -229,6 +243,19 @@ class FierceTooth(Enemy):
             self.position.x = WORLD_WIDTH - self.rect.width
 
     def _blocked_by_obstacle(self, start_pos, end_pos, obstacle_list, constraint_rect_group):
+        """
+        Check if the line from the starting position to the end position is blocked by any platforms or red constraint rects.
+
+        Args:
+            start_pos (tuple): The starting (x, y) position.
+            end_pos (tuple): The ending (x, y) position.
+            obstacle_list (Group): A list of obstacle rects for vision blocking checks.
+            constraint_rect_group (Group): The constraint rects which are used to block enemy movement and vision.
+
+        Returns:
+            bool: True if the line is blocked by an obstacle, False otherwise.
+        """
+
         if not obstacle_list and not constraint_rect_group:
             return False
 
@@ -274,9 +301,8 @@ class FierceTooth(Enemy):
         """
         Determine whether the player is within the enemy's vision cone.
 
-        This updates `self.player_in_vision` and `self.attacking` state and returns
-        one of: "attack" (player in close attack range and inside cone),
-        "shoot" (player in long-range vision cone), or False if not visible.
+        This updates `self.player_in_vision` and `self.attacking` to see whether the 
+        player is in vision range and whether the player is close enough to attack or not.
 
         Args:
             player (Player): Player object whose position is tested.
@@ -284,8 +310,9 @@ class FierceTooth(Enemy):
             constraint_rect_group (Group): The constraint rects which are used to block enemy movement and vision.
 
         Returns:
-            str|bool: "attack", "shoot", or False.
+            str or bool: "attack", "shoot", or False.
         """
+
         if not player or not player.alive:
             self.player_in_vision = False
             self.attacking = False
@@ -345,6 +372,7 @@ class FierceTooth(Enemy):
         Args:
             player_ammo_group (Group): Group of player ammo sprites.
         """
+
         if not self.smartmode or not self.alive:
             return
 
@@ -385,6 +413,9 @@ class FierceTooth(Enemy):
 
         This scans the provided grenade group. If a projectile is within a short range
         and within the enemy's forward cone, the enemy will to attempt a dodge to prevent death.
+
+        Args:
+            player_grenade_group (Group): Group of player grenade sprites.
         """
 
         if not self.smartmode or not self.alive:
@@ -438,15 +469,23 @@ class FierceTooth(Enemy):
     def draw(self, win):
         """
         Draw the enemy on the provided surface.
+
+        Args:
+            win (Surface): The Pygame surface to draw the enemy on.
         """
+
         win.blit(self.img, self.rect)
 
     def update_sprite(self, player):
         """
         Update enemy sprite based on the current state (idle/run/jump/fall/attack/recover/hit/dead).
 
-        Dead > Hit > Recover > Attack > Jump > Fall > Run > Idle. When the player is dead, the enemy doesn't attack or recover.
+        If player is alive, prioritise attack/recover/hit states. If player is dead, only use idle/run/jump/fall/hit states.
+
+        Args:
+            player (Player): The player object used to determine enemy state.
         """
+
         if not self.alive:
             sprite_sheet = "Dead"
         else:
@@ -500,10 +539,16 @@ class FierceTooth(Enemy):
 
     def get_hit(self, damage=20, attacker=None):
         """
-        Apply damage to this enemy and optionally update facing direction based on attacker.
-
+        Apply damage to this enemy and update facing direction based on attacker.
         When in smartmode and an attacker is provided, the enemy will turn to face the attacker.
+
+        Also triggers hit animation if the attacker is the player (jumped on head) or a player grenade.
+
+        Args:
+            damage (int): Amount of damage to apply.
+            attacker (Player|tuple|None): The attacker object or position (x, y).
         """
+
         if self.hit_anim_timer > 0:
             return
 
@@ -528,6 +573,14 @@ class FierceTooth(Enemy):
             self.hit_anim_timer = self.HIT_ANIM_DURATION
 
     def shoot(self, ammo_sprites, ammo_group):
+        """
+        Shoot a CannonBall in the current facing direction and reset shoot cooldown.
+
+        Args:
+            ammo_sprites (dict): Sprite frames for enemy ammo animations.
+            ammo_group (Group): Group to add spawned CannonBall sprites.
+        """
+
         shot_fx.play()
         self.shoot_cooldown = 60
             
@@ -552,6 +605,7 @@ class FierceTooth(Enemy):
             ammo_group (Group): Group to add spawned CannonBall sprites.
             constraint_rect_group (Group): Group of constraint rects for collision checks.
         """
+
         self.check_alive()
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
@@ -826,7 +880,10 @@ class FierceTooth(Enemy):
           - For non-RED obstacle hits, rays slide along the top edge of obstacles/ground
             until vision range. Sliding is clamped by RED constraint rects so a ray
             cannot slide past a RED constraint.
+
+        Please note this method is intended for showcasing purposes only, and is fully written by AI.
         """
+
         if not self.alive:
             return
 

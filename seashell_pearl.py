@@ -9,7 +9,7 @@ from level import shot_fx
 class SeashellPearl(Enemy):
     """
     SeashellPearl enemy that remains stationary and attacks the player with pearl projectiles or bites when close.
-    Can also turn direction and tracker player based on recent vision.
+    Can also turn direction and track player based on recent vision, and if a grenade is thrown.
 
     Attributes:
         HIT_ANIM_DURATION (int): Duration of hit animation in frames.
@@ -18,18 +18,23 @@ class SeashellPearl(Enemy):
         vision_range (int): Maximum distance at which the enemy can see the player.
         vision_angle (int): Angle of the enemy's vision cone.
         player_in_vision (bool): Whether the player is currently within the enemy's vision cone.
+
         fire_cooldown (int): Cooldown timer for firing pearl projectiles.
+
         bite_range (int): Distance within which the enemy can perform a bite attack.
         bite_cooldown (int): Cooldown timer for bite attacks.
         biting (bool): Whether the enemy is currently performing a bite attack.
         bite_animation_timer (int): Timer for keeping track of biting animation.
         bite_animation_duration (int): A set duration to make sure the enemy completes bite motion before switching sprite.
+
         smartmode (bool): If True, the enemy will turn to face the player when hit.
         recently_lost_vision_timer (int): Timer for recently lost vision state in smartmode.
         recheck_turn_timer (int): Timer for rechecking direction after turning in smartmode.
         turn_cooldown (int): Cooldown timer for turning direction in smartmode.
+
         was_hit_from_behind (bool): Whether the enemy was hit from behind.
         hit_anim_timer (int): Timer for displaying hit animation when damaged by the player.
+
         enemy_type (str): Type identifier for the enemy.
     """
 
@@ -46,7 +51,9 @@ class SeashellPearl(Enemy):
             x_vel (float): Base horizontal speed.
             sprites (dict): Sprite frames for animations.
             health (int): Starting health.
+            smartmode (bool): If True, the enemy will turn to face the player when hit or when player switches direction from vision.
         """
+
         super().__init__(x, y, x_vel, sprites, health)
 
         self.vision_range = 425
@@ -72,6 +79,13 @@ class SeashellPearl(Enemy):
         self.enemy_type = "Seashell Pearl"
 
     def handle_movement(self, obstacle_list):
+        """
+        Handle vertical movement and collisions with the environment.
+        Only because when it spawns mid-air it needs to fall to the ground.
+
+        Args:
+            obstacle_list (Group): Group of obstacle sprites for collision detection.
+        """
         self.velocity.y = 0
 
         self.y_vel += self.GRAVITY
@@ -114,6 +128,7 @@ class SeashellPearl(Enemy):
         Returns:
             string: "bite" if the player is within the bite range, "fire" if the player is within the vision range, False otherwise.
         """
+
         if not player or not player.alive:
             self.player_in_vision = False
             self.biting = False
@@ -182,6 +197,14 @@ class SeashellPearl(Enemy):
         return False 
 
     def react_to_grenades(self, player, player_grenade_group):
+        """
+        In smartmode, check for nearby player grenades. If a grenade is seen, turn around if the player is behind the enemy. 
+
+        Args:
+            player (Player): The player object for position reference.
+            player_grenade_group (Group): Group of player grenade sprites to check against.
+        """
+
         if not self.smartmode or not self.alive:
             return
 
@@ -220,15 +243,20 @@ class SeashellPearl(Enemy):
     def draw(self, win):
         """
         Draw the enemy on the provided surface.
+
+        Args:
+            win (Surface): Surface to draw on.
         """
+
         win.blit(self.img, self.rect)
 
     def update_sprite(self, player):
         """
         Update enemy sprite based on the current state (idle/seashell bite/seashell fire/seashell hit/dead).
 
-        Dead > Hit > Bite > Fire > Idle. When the player is dead, the enemy won't pick bite/fire.
+        Dead > Hit > Bite > Fire > Idle. When the player is dead, the enemy won't pick bite or fire.
         """
+
         if not self.alive:
             sprite_sheet = "Dead"
         else:
@@ -269,10 +297,16 @@ class SeashellPearl(Enemy):
 
     def get_hit(self, damage=20, attacker=None):
         """
-        Apply damage to this enemy when hit
-
+        Apply damage to this enemy when hit.  
         When in smartmode and an attacker is provided, the enemy will turn to face the attacker.
+
+        Also enables hit animation when the attacker is the player or a player grenade.
+
+        Args:
+            damage (int): Amount of damage to apply.
+            attacker (Player or tuple): The attacker object or (x, y) position of the attacker.
         """
+
         if self.hit_anim_timer > 0:
             return
 
@@ -448,7 +482,10 @@ class SeashellPearl(Enemy):
             player (Player): Player object for drawing a line when visible.
             obstacle_list (Group): List of obstacles for collision detection.
             constraint_rect_group (Group): Group of constraint rectangles.
+
+        Please note that this function is intended for debugging purposes and is fully written by AI. 
         """
+
         if not self.alive:
             return
 

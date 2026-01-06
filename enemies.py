@@ -20,11 +20,11 @@ class Enemy(pygame.sprite.Sprite):
         position (Vector2): Current position of the enemy.
         velocity (Vector2): Current velocity of the enemy.
         speed (float): Horizontal movement speed of the enemy.
+        on_ground (bool): Whether the enemy is on the ground.
         y_vel (float): Current vertical velocity of the enemy.
         alive (bool): Whether the enemy is alive.
         rect (Rect): Rectangular area representing the enemy's position and size.
         mask (Mask): Pixel-perfect collision mask for the enemy.
-        is_enemy (bool): Proving that this object is an Enemy.
         jump_count (int): Counter for jumps made by the enemy.
         shoot_cooldown (int): Cooldown timer for shooting projectiles.
         health (int): Current health of the enemy.
@@ -41,6 +41,7 @@ class Enemy(pygame.sprite.Sprite):
         moving_right (bool): Whether the enemy is currently moving right.
 
         is_enemy (bool): Flag to identify this object as an enemy.
+        enemy_type (str): Specific type of enemy (to be defined in subclasses).
     """
 
     ANIMATION_DELAY = 6

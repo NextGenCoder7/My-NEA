@@ -3,8 +3,31 @@ from constants import RED, PURPLE, ORANGE, TILE_SIZE
 
 
 class ConstraintRect(pygame.sprite.Sprite):
+    """
+    A rectangle used to define constraints in the level editor. These rectangles are not visible in the game,
+    and serve as constraints and markers for all the game enemies, in particular Fierce Tooth and Pink Star enemies. 
+
+    The red ones serve as constraints for vision and physical movement, creating zones for Fierce Tooth and Seashell Pearl enemies.
+    The orange ones act as corners for 'danger zones' which are guarded by Pink Star enemies.
+    The purple ones are used as jump triggers for Fierce and Pink enemies, indicating where they should jump.
+
+    Attributes:
+        colour (tuple): The RGB colour of the rectangle based on the tile number.
+        rect (Rect): The Pygame rectangle defining the position and size of the constraint.
+    """
 
     def __init__(self, x, y, width, height, tile_number):
+        """
+        Initialise the ConstraintRect object.
+
+        Args:
+            x (int): The x-coordinate of the rectangle's top-left corner.
+            y (int): The y-coordinate of the rectangle's top-left corner.
+            width (int): The width of the rectangle.
+            height (int): The height of the rectangle.
+            tile_number (int): The tile number indicating the type of constraint (25: red, 26: purple, 29: orange).
+        """
+
         super().__init__()
 
         self.colour = None
@@ -23,17 +46,18 @@ class ConstraintRect(pygame.sprite.Sprite):
 
 def compute_danger_zones(constraint_group):
     """
-    Find orange marker rects and return list of (bounding_rect, validated) tuples.
+    Find orange marker rects and return a list of (bounding_rect, validated) tuples.
 
-    Behaviour:
-        - Looks for ConstraintRect instances with colour == ORANGE.
-        - Builds a bounding rect from their extents.
-        - Validates that there are rectangles at the four expected corner toplefts
-          (uses TILE_SIZE as the corner rect size).
+    Basically builds a bounding rect from their extents and validates that there are rectangles 
+    at the four expected corner toplefts.
+
+    Args:
+        constraint_group (Group): A Pygame sprite group containing ConstraintRect objects.
     
     Returns:
         empty list if no orange markers found.
     """
+
     orange_rects = [r for r in constraint_group if getattr(r, "colour", None) == ORANGE]
     if not orange_rects:
         return []

@@ -1,5 +1,3 @@
-# This file contains the window settings and defines constants for the game.
-
 WIDTH, HEIGHT = 800, 640
 LOWER_MARGIN, SIDE_MARGIN = 100, 300
 

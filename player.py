@@ -14,21 +14,35 @@ class Player(pygame.sprite.Sprite):
     Attributes:
         ANIMATION_DELAY (int): Delay in frames between sprite animations.
         HEALTH_BAR_DURATION (int): Duration for which the health bar is displayed after taking damage.
+        STAMINA_BAR_DURATION (int): Duration for which the stamina bar is displayed after sprinting.
+        NUM_AMMO_DURATION (int): Duration for which the ammo count is displayed after collecting ammo.
+        NUM_GRENADES_DURATION (int): Duration for which the grenade count is displayed after collecting grenades.
         GRAVITY (float): Gravity strength affecting the player.
         HIT_ANIM_DURATION (int): Duration for player hit animation in frames.
+        SPRINT_SPEED (float): Speed of the player while sprinting.
+        SPRINT_DEPLETION (float): Rate at which stamina depletes while sprinting.
+        SPRINT_RECOVERY (float): Rate at which stamina recovers when not sprinting.
+        SPRINT_THRESHOLD (int): Stamina threshold below which sprinting is not allowed.
+        GRENADE_MAX_CHARGE_SECONDS (float): Maximum seconds for charging a grenade throw.
 
+        start_x (float): Initial x-coordinate of the player in a level.
+        start_y (float): Initial y-coordinate of the player in a level.
         sprites (dict): Dictionary containing different sprites for the player animations.
+        gem_sprites (dict): Dictionary containing sprites for the player's ammo.
+        grenade_sprites (dict): Dictionary containing sprites for the player's grenades.
         direction (str): Current facing direction of the player ('right' or 'left').
         img (Surface): Current image/sprite of the player.
         animation_count (int): Counter for animation frames.
         position (Vector2): Current position of the player in the game world.
         velocity (Vector2): Current velocity of the player.
+        base_speed (float): Base movement speed of the player.
         speed (float): Movement speed of the player.
         y_vel (float): Vertical velocity of the player.
         moving_left (bool): Flag indicating if the player is moving left.
         moving_right (bool): Flag indicating if the player is moving right.
         ammo (int): Current ammo count for the player.
         start_ammo (int): Initial ammo count for the player.
+        grenades (int): Current grenade count for the player.
         rect (Rect): Pygame Rect object representing the player's position and size.
         mask (Mask): Pygame Mask object for collision detection with enemies.
         alive (bool): Flag indicating if the player is alive.
@@ -63,7 +77,11 @@ class Player(pygame.sprite.Sprite):
             x_vel (float): Initial horizontal velocity of the player.
             SPRITES (dict): Dictionary containing different sprites for the player animations.
             ammo (int): Initial ammo count for the player.
+            grenades (int): Initial grenade count for the player.
+            GEM_SPRITES (dict): Dictionary containing sprites for the player's ammo.
+            GRENADE_SPRITES (dict): Dictionary containing sprites for the player's grenades.
         """
+
         super().__init__()
         self.start_x = x
         self.start_y = y
@@ -117,8 +135,9 @@ class Player(pygame.sprite.Sprite):
 
     def reset_position(self):
         """
-        Resets the player's position to the last checkpoint.
+        Resets the player's position to the last checkpoint in the level.
         """
+
         self.position.x, self.position.y = self.last_checkpoint
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
@@ -137,6 +156,7 @@ class Player(pygame.sprite.Sprite):
             hazard_group (Group): Pygame Group containing hazards for collision detection.
             enemies_group (Group): Pygame Group containing enemy objects for collision detection.
         """
+
         shift_pressed = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
 
         self.velocity.x = 0
@@ -314,19 +334,18 @@ class Player(pygame.sprite.Sprite):
                         self.position.x = self.rect.x
 
         if self.rect.left + self.velocity.x <= 0:
-            self.direction = "right"
             self.velocity.x = 0
             self.position.x = 0
         elif self.rect.right + self.velocity.x > self.world_width:
-            self.direction = "left"
             self.velocity.x = 0
             self.position.x = self.world_width - self.rect.width
 
     def handle_death(self, screen_height):
         """
         Run the death animation once: small upward impulse, spin onto back,
-        then fall off the bottom of the screen. It is safe to call every frame after death.
+        then fall off the bottom of the screen. Calls every frame after death for a few seconds.
         """
+
         if self.alive:
             return  
         
@@ -361,8 +380,10 @@ class Player(pygame.sprite.Sprite):
     def jump(self):
         """
         Makes the player jump by applying a vertical velocity.
-        Supports single and double jumps.
+        Supports single and double jumps for the player.
+        Also accounts for whether the player is in a danger zone or not. 
         """
+
         if self.jump_count < 2:
             jump_fx.play()
             if not self.in_danger_zone:
@@ -386,6 +407,7 @@ class Player(pygame.sprite.Sprite):
         Args:
             win (Surface): The surface on which to draw the player.
         """
+
         win.blit(self.img, self.rect)
 
     def get_hit(self, damage=10, attacker=None):
@@ -396,6 +418,7 @@ class Player(pygame.sprite.Sprite):
         Args:
             damage (int, optional): The amount of damage to apply to the player. Defaults to 10.
         """
+
         self.health -= damage
         self.health_bar_timer = self.HEALTH_BAR_DURATION
 
@@ -406,8 +429,9 @@ class Player(pygame.sprite.Sprite):
     def check_alive(self):
         """
         Checks if the player is alive based on health.
-        If the player's health drops to 0 or below, they die.
+        If the player's health drops to 0 or below, they are dead.
         """
+
         if self.health <= 0:
             self.health = 0
             self.speed = 0
@@ -423,6 +447,7 @@ class Player(pygame.sprite.Sprite):
         Returns:
             bool: True if there is a collision, False otherwise.
         """
+
         if self.rect.colliderect(obj.rect):
             offset_x = obj.rect.x - self.rect.x
             offset_y = obj.rect.y - self.rect.y
@@ -437,6 +462,7 @@ class Player(pygame.sprite.Sprite):
         Args:
             win (Surface): The surface on which to draw the stamina bar.
         """
+
         if self.stamina <= self.max_stamina and self.stamina_bar_timer > 0:
             bar_width = 40
             bar_height = 6
@@ -478,11 +504,12 @@ class Player(pygame.sprite.Sprite):
 
     def draw_health_bar(self, win):
         """
-        Draws health bar above the player when the player is hit.
+        Draws health bar above the player when the player is hit or when they press h.
 
         Args:
             win (Surface): The surface on which to draw the health bar.
         """
+
         if self.health <= self.max_health and self.health_bar_timer > 0:
             bar_width = 40
             bar_height = 6
@@ -504,8 +531,9 @@ class Player(pygame.sprite.Sprite):
 
     def draw_ammo_count(self, win):
         """
-        Draws the number of ammo above the player when the player collects more ammo.
+        Draws the number of ammo above the player when the player collects more ammo or when they press x.
         """
+
         if (self.ammo >= 0 and self.draw_num_ammo_timer > 0):
             ammo_img = self.gem_sprites["player_ammo"][0]
             ammo_img = pygame.transform.scale(ammo_img, (TILE_SIZE // 4, TILE_SIZE // 4))
@@ -517,8 +545,9 @@ class Player(pygame.sprite.Sprite):
 
     def draw_grenade_count(self, win):
         """
-        Draws the number of grenades above the player when the player collects more grenades.
+        Draws the number of grenades above the player when the player collects more grenades or when they press z.
         """
+
         if (self.grenades >= 0 and self.draw_num_grenades_timer > 0):
             grenade_img = self.grenade_sprites["Grenade Idle"][0]
             grenade_img = pygame.transform.scale(grenade_img, (TILE_SIZE // 4, TILE_SIZE // 4))
@@ -530,13 +559,14 @@ class Player(pygame.sprite.Sprite):
 
     def shoot_ammo(self, ammo_sprites, ammo_group):
         """
-        Shoots ammo in the direction the player is facing.
+        Shoots ammo in the direction the player is facing. Makes sure player's shoot cooldown is 0 and that they have ammo.
         Creates a PurpleGem object representing the ammo and adds it to the ammo group.
 
         Args:
             ammo_img (Surface): The image of the ammo sprite.
             ammo_group (Group): Pygame Group to which the ammo object will be added.
         """
+
         if self.shoot_cooldown == 0 and self.ammo > 0 and self.hit_anim_timer == 0:
             shot_fx.play()
             self.shoot_cooldown = 20
@@ -556,9 +586,9 @@ class Player(pygame.sprite.Sprite):
     def launch_grenade(self, grenade_sprites, grenade_group, charge_seconds: float=0.0):
         """
         Throw a grenade. `charge_seconds` is mapped to a strength multiplier using
-        an ease-out square-root curve (sqrt). charge_seconds is clamped to
-        GRENADE_MAX_CHARGE_SECONDS.
+        an ease-out square-root curve (sqrt). `charge_seconds` is clamped to GRENADE_MAX_CHARGE_SECONDS.
         """
+
         if self.grenade_cooldown != 0 or self.grenades <= 0 or self.hit_anim_timer != 0:
             self.grenade_charging = False
             self.grenade_charge_time = 0.0
@@ -595,7 +625,7 @@ class Player(pygame.sprite.Sprite):
 
     def update_sprite(self):
         """
-        Updates the player's sprite based on the current animation state (jumping, falling, running, or idle).
+        Updates the player's sprite based on the current animation state (hit, jumping/double jumping, falling, running, or idle).
         """
         sprite_sheet = "Idle"
 
@@ -633,6 +663,7 @@ class Player(pygame.sprite.Sprite):
         """
         Updates the player's state, including animation, position, and cooldowns.
         """
+
         self.check_alive()
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)

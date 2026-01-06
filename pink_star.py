@@ -8,7 +8,14 @@ from constants import RED, PURPLE, TILE_SIZE
 
 class Node:
     """
-    Node for A* pathfinding representing a purple rect position.
+    Node for A* pathfinding. The purple rects serve as the nodes. Each node has a position, parent node, and g, h, f costs.
+
+    Attributes:
+        position (tuple): The (x, y) position of the node.
+        parent (Node): The parent node in the path.
+        g (int): Cost from start to current node.
+        h (int): Heuristic cost from current node to goal.
+        f (int): Total cost (g + h).
     """
 
     def __init__(self, position, parent=None):
@@ -16,28 +23,51 @@ class Node:
         self.parent = parent
         self.g = 0  
         self.h = 0  
-        self.f = 0     # Total cost (g + h)
+        self.f = 0     
 
-    def __lt__(self, other):    # (less than)
+    def __lt__(self, other):    
+        """
+        Less-than comparison for priority queue based on f cost.
+
+        Args:
+            other (Node): Another node to compare with.
+
+        Returns:
+            bool: True if this node's f cost is less than the other node's f cost.
+        """
+
         return self.f < other.f
 
 
 class PinkStar(Enemy):
     """
-    A PinkStar enemy that chases the player and attacks when the player is in its lair,
+    A PinkStar enemy that chases the player and attacks when the player is in its lair (danger zone),
     using the A* algorithm to relentlessly chase the player.
+
+    If it successfully attacks the player, it goes into a recovery state before chasing again.
+    The algorithm uses purple constraint rectangles as nodes for pathfinding, and resets every second.
 
     Attributes:
         HIT_ANIM_DURATION (int): Duration of hit animation in frames.
 
+        death_fall_speed_cap (int): Maximum fall speed when dead.
+        death_handled (bool): Whether death handling has been completed.
+
         chasing_player (bool): Whether the enemy is currently chasing the player.
+        path (list): List of (x, y) positions representing the current path to the player.
+        current_path_index (int): Current index in the path list.
+        path_update_timer (int): Timer for updating the path.
+        path_update_interval (int): Interval for updating the path.
+
         attacking (bool): Whether the enemy is attacking.
         attack_range (int): Distance within which the enemy can attack the player.
         attack_cooldown (int): Cooldown timer for attacks.
         attack_recovery_timer (int): Timer for recovery after an attack.
         attack_recovery_duration (int): Duration of recovery after an attack.
         post_attack_recovery (bool): Whether the enemy is in post-attack recovery state.
+
         hit_anim_timer (int): Timer for hit animation duration.
+
         enemy_type (str): Type identifier for the enemy.
     """
 
@@ -54,7 +84,9 @@ class PinkStar(Enemy):
             sprites (dict): Sprite frames for animations.
             health (int): Starting health.
         """
+
         super().__init__(x, y, x_vel, sprites, health)
+
         self.death_fall_speed_cap = 10
         self.death_handled = False
 
@@ -79,6 +111,7 @@ class PinkStar(Enemy):
         """
         Calculate the Manhattan distance between two positions (h function).
         """
+
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     def find_nearest_purple_rect(self, position, purple_rects):
@@ -86,11 +119,11 @@ class PinkStar(Enemy):
         Find the nearest purple rect to the given position.
         
         Args:
-            position: (x, y) position to find nearest rect to
-            purple_rects: List of purple constraint rectangles
+            position: (x, y) position to find nearest rect to.
+            purple_rects: List of purple constraint rectangles.
             
         Returns:
-            (x, y) center position of nearest purple rect, or None if no rects found
+            (x, y) center position of nearest purple rect, or None if no rects found.
         """
 
         if not purple_rects:
@@ -111,34 +144,41 @@ class PinkStar(Enemy):
 
     def get_purple_rect_by_center(self, center_pos, purple_rects):
         """
-        Given a center_pos (x, y) return the purple_rect whose center matches (or None).
+        Given a center_pos (x, y), return the purple_rect whose center matches (or None).
         
         Args:
-            center_pos: (x, y) center position to find matching rect to
-            purple_rects: List of purple constraint rectangles
+            center_pos: (x, y) center position to find matching rect to.
+            purple_rects: List of purple constraint rectangles.
             
         Returns:
-            PurpleRect object matching the center position, or None if no rect found.
+            PurpleRect: object matching the center position, or None if no rect found.
         """
 
         if not purple_rects or not center_pos:
             return None
+
         cx, cy = center_pos
         for pr in purple_rects:
             if pr.rect.centerx == cx and pr.rect.centery == cy:
                 return pr
+
         return None 
 
     def get_node_edge_coord(self, node_center_pos, purple_rects, direction):
         """
         Convert a node center position to an edge coordinate depending on `direction`.
-        If direction == "right" -> use node.rect.right, else node.rect.left.
-        Falls back to center if matching rect not found.
+        If direction is "right" -> use node.rect.right, else node.rect.left.
+        Does fall back to center if matching rect not found.
+
+        Args:
+            node_center_pos: (x, y) center position of the node.
+            purple_rects: List of purple constraint rectangles.
+            direction: "left" or "right" indicating which edge to return.
 
         Returns:
-            (x, y) coordinate to aim for when following the path.
-        
+            (x, y): coordinate to aim for when following the path.       
         """
+
         pr = self.get_purple_rect_by_center(node_center_pos, purple_rects)
         if not pr:
             return node_center_pos
@@ -152,10 +192,10 @@ class PinkStar(Enemy):
         Build a graph of connections between purple rects.
         Two rects are connected if:
         - They're on the same Y level and horizontally reachable
-        - One is above the other (vertical connection, requires jump)
+        - One is above the other (vertical connection, which requires a jump)
         
         Returns:
-            dict mapping (x, y) -> list of connected (x, y) positions
+            dict mapping (x, y) -> list of connected (x, y) positions.
         """
 
         connections = {}
@@ -181,15 +221,16 @@ class PinkStar(Enemy):
 
     def astar_pathfinding(self, start_pos, goal_pos, purple_rects):
         """
-        A* pathfinding algorithm using purple rects as nodes.
+        The A* pathfinding algorithm using purple rects as nodes.
+        The move cost is 1 for horizontal moves and 2 for vertical moves (jumps).
         
         Args:
-            start_pos: (x, y) starting position (nearest purple rect to enemy)
-            goal_pos: (x, y) goal position (nearest purple rect to player)
-            purple_rects: List of purple constraint rectangles
+            start_pos: (x, y) starting position (nearest purple rect to enemy).
+            goal_pos: (x, y) goal position (nearest purple rect to player).
+            purple_rects: List of purple constraint rectangles.
             
         Returns:
-            List of (x, y) positions representing the path, or None if no path found.
+            List: (x, y) positions representing the path, or None if no path is found.
         """
 
         if not start_pos or not goal_pos:
@@ -250,6 +291,13 @@ class PinkStar(Enemy):
         return None
 
     def handle_death(self, obstacle_list):
+        """
+        Handles death fall logic for the PinkStar enemy. Falls until hitting the ground, if not already on the ground.
+
+        Args:
+            obstacle_list (list): List of obstacle tiles for collision detection.
+        """
+
         self.y_vel += self.GRAVITY
         if self.y_vel > self.death_fall_speed_cap:
             self.y_vel = self.death_fall_speed_cap
@@ -274,8 +322,9 @@ class PinkStar(Enemy):
     def handle_movement(self, obstacle_list, constraint_rect_group, player):
         """
         Handles AI movement logic (specific movement for Pink Star enemies).
-        Uses A* pathfinding when player is in danger zone.
+        Uses A* pathfinding when player is in danger zone, otherwise patrols randomly.
         """
+
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
@@ -322,7 +371,6 @@ class PinkStar(Enemy):
                     elif dy < -12 and self.on_ground and self.jump_count < 1:
                         self.jump()
             else:
-                # No path yet: directly chase player center
                 if player:
                     dx = player.rect.centerx - self.rect.centerx
                     dy = player.rect.centery - self.rect.centery
@@ -342,7 +390,6 @@ class PinkStar(Enemy):
                     if dy < -12 and self.on_ground and self.jump_count < 1:
                         self.jump()
         else:
-            # Idle / wander when not chasing
             self.state_timer += 1
             if self.state_timer >= self.state_duration:
                 if self.state == "idle":
@@ -457,13 +504,23 @@ class PinkStar(Enemy):
     def draw(self, win):
         """
         Draw the enemy on the provided surface.
+
+        Args:
+            win (Surface): The Pygame surface to draw the enemy on.
         """
+
         win.blit(self.img, self.rect)
 
     def get_hit(self, damage=20, attacker=None):
         """
         Apply damage to this enemy based on the attacker.
+        Sets hit animation timer if hit by a grenade, the only thing that can cause decent damage to this enemy.
+
+        Args:
+            damage (int): The amount of damage to apply.
+            attacker (object): The entity that is attacking this enemy.
         """
+
         if self.hit_anim_timer > 0:
             return
 
@@ -477,8 +534,12 @@ class PinkStar(Enemy):
         """
         Update the enemy's sprite based on its current state (idle/run/jump/fall/attack/recover/hit/dead).
 
-        Same priority system as FierceTooth.
+        If the player is alive, prioritises Hit, Recover and Attack. Same priority system as FierceTooth.
+
+        Args:
+            player (Player): The player object to interact with.
         """
+
         if not self.alive:
             sprite_sheet = "Dead"
         else:
@@ -533,11 +594,13 @@ class PinkStar(Enemy):
     def update(self, player, constraint_rect_group):
         """
         Update the enemy's state, which includes chasing and attacking the player.
-        Also handles cooldowns, collisions.
+        Also handles cooldowns and collisions.
 
         Args:
             player (Player): The player object to interact with.
+            constraint_rect_group (Group): Group of constraint rectangles for AI navigation.
         """
+
         self.check_alive()
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
