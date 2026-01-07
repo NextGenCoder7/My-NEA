@@ -433,6 +433,12 @@ class GameFlag(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.img)
         self.animation_count = 0
 
+        self.idle_frames = self.sprites.get("Checkpoint_Flag_Idle1", [])
+        self.out_frames = self.sprites.get("Checkpoint_Flag_Out1", [])
+        self.state = "idle"
+        self.frame_index = 0
+        self.frame_timer = 0
+
         if self.flag_type == "Checkpoint_Flag_Idle1":
             self.is_checkpoint = True
         elif self.flag_type == "Pointer_Idle":
@@ -468,21 +474,58 @@ class GameFlag(pygame.sprite.Sprite):
 
     def update_sprite(self):
         """
-        Update flag sprite animation frame.
+        Update flag sprite animation frame. Level end flags only have one animation.
+
+        While checkpoint flags have an animation sequence when triggered.
+        If the player touches the checkpoint flag, it will play the "out" animation twice, backwards then forwards,
+        in order to indicate to the player that they have found and saved a checkpoint in the level.
         """
 
-        sprite_sheet_name = self.flag_type
-        
-        if sprite_sheet_name in self.sprites:
-            sprites = self.sprites[sprite_sheet_name]
-            sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
-            self.img = sprites[sprite_index]
+        if self.flag_type != "Checkpoint_Flag_Idle1":
+            sprite_sheet_name = self.flag_type
+            if sprite_sheet_name in self.sprites:
+                sprites = self.sprites[sprite_sheet_name]
+                sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+                self.img = sprites[sprite_index]
+            
+            self.animation_count += 1
+            return
 
-        self.animation_count += 1
+        if self.state == "idle":
+            sprites = self.idle_frames
+            if sprites:
+                sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+                self.img = sprites[sprite_index]
+            self.animation_count += 1
+            return
+
+        sprites = self.out_frames
+        if not sprites:
+            self.state = "idle"
+            return
+
+        self.frame_timer += 1
+        if self.frame_timer >= self.ANIMATION_DELAY:
+            self.frame_timer = 0
+            if self.state == "hide":
+                self.frame_index -= 1
+                if self.frame_index < 0:
+                    self.state = "appear"
+                    self.frame_index = 0
+            elif self.state == "appear":
+                self.frame_index += 1
+                if self.frame_index >= len(sprites):
+                    self.state = "idle"
+                    self.animation_count = 0
+                    return
+
+        sprite_index = max(0, min(self.frame_index, len(sprites)))
+        self.img = sprites[sprite_index]
 
     def update(self, player):
         """
-        Update flag position/mask. If player collides with it, that's the player's checkpoint if they die or exit the program. 
+        Update flag position/mask. If player collides with a checkpoint, that's the player's checkpoint, where they will 
+        spawn if they die and start again or quite the program and load the level again. 
 
         Args:
             player (Player): Player object used to detect collision.
@@ -495,6 +538,14 @@ class GameFlag(pygame.sprite.Sprite):
             if player.alive:
                 if self.flag_type == "Checkpoint_Flag_Idle1":
                     player.last_checkpoint = (self.rect.x, self.rect.y)
+                    if self.out_frames:
+                        self.state = "hide"
+                        self.frame_index = len(self.out_frames) - 1
+                        self.frame_timer = 0
+                        self.animation_count = 0
+                    else:
+                        self.state = "idle"
+
                 elif self.flag_type == "Pointer_Idle":
                     player.reached_level_end = True
 
