@@ -104,19 +104,6 @@ class SeashellPearl(Enemy):
                     self.rect.bottom = tile.collide_rect.top
                     self.position.y = self.rect.y
                     self.y_vel = 0
-        
-        self.position += self.velocity
-
-        world_right = MAX_COLS * TILE_SIZE
-
-        if self.rect.left + self.velocity.x <= 0:
-            self.direction = "right"
-            self.velocity.x = 0
-            self.position.x = 0
-        elif self.rect.right + self.velocity.x > world_right:
-            self.direction = "left"
-            self.velocity.x = 0
-            self.position.x = world_right - self.rect.width
 
     def check_vision_cone(self, player):
         """
@@ -199,6 +186,8 @@ class SeashellPearl(Enemy):
     def react_to_grenades(self, player, player_grenade_group):
         """
         In smartmode, check for nearby player grenades. If a grenade is seen, turn around if the player is behind the enemy. 
+        Since this enemy doesn't move, it cannot dodge grenades, so the best it can do is to turn to face the player 
+        when a grenade is detected within its vision cone.
 
         Args:
             player (Player): The player object for position reference.
@@ -238,6 +227,7 @@ class SeashellPearl(Enemy):
                             self.direction = "right"
 
                         self.turn_cooldown = self.TURN_COOLDOWN
+
                     break
 
     def draw(self, win):
@@ -254,7 +244,8 @@ class SeashellPearl(Enemy):
         """
         Update enemy sprite based on the current state (idle/seashell bite/seashell fire/seashell hit/dead).
 
-        Dead > Hit > Bite > Fire > Idle. When the player is dead, the enemy won't pick bite or fire.
+        Hit is always prioritised over other animations. Bite/Fire takes priority over Idle.
+        When the player dies it won't do any bite/fire animations, just hit or idle when Seashell is alive.
         """
 
         if not self.alive:
@@ -400,8 +391,11 @@ class SeashellPearl(Enemy):
                     self.recheck_turn_timer -= 1
 
                     if self.recheck_turn_timer == 0 and not self.player_in_vision and self.turn_cooldown == 0:
-                        self.direction = "left" if self.direction == "right" else "right"
-                        self.turn_cooldown = self.TURN_COOLDOWN
+                        dx = player.rect.centerx - self.rect.centerx
+                        player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
+                        if player_is_behind:
+                            self.direction = "left" if self.direction == "right" else "right"
+                            self.turn_cooldown = self.TURN_COOLDOWN
 
         if self.health_bar_timer > 0:
             self.health_bar_timer -= 1

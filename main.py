@@ -240,12 +240,12 @@ class World:
                         self.fiercetooth_group.add(fiercetooth_enemy)               
                     elif tile == 20:     # PinkStar enemy tile
                         PINKSTAR_SPRITES = load_enemy_sprites('Pink Star', 32, 32)
-                        pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 100)
+                        pink_star_enemy = PinkStar(x * TILE_SIZE, y * TILE_SIZE, 3, PINKSTAR_SPRITES, 400)
                         pink_star_enemy.obj_id = f"enemy:ps:{x}:{y}"
                         self.pink_star_group.add(pink_star_enemy)
                     elif tile == 21:     # SeashellPearl enemy tile
                         SEASHELL_SPRITES = load_enemy_sprites('Seashell Pearl', 32, 32)
-                        seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE, 0, SEASHELL_SPRITES, 120, True) 
+                        seashell_pearl_enemy = SeashellPearl(x * TILE_SIZE, y * TILE_SIZE + 5, 0, SEASHELL_SPRITES, 120, True) 
                         seashell_pearl_enemy.obj_id = f"enemy:ss:{x}:{y}" 
                         self.seashell_group.add(seashell_pearl_enemy)               
                     elif tile >= 22 and tile <= 24:    # collectible gem tiles: player_ammo, player_health, coins
@@ -655,7 +655,12 @@ def apply_saved_progress(selected_level, world, level_info, obstacle_list, playe
 
     for enemy in list(fiercetooth_group) + list(seashell_group) + list(pink_star_group):
         if getattr(enemy, "obj_id", None) in level_info.killed_enemy_ids:
+            enemy.alive = False
+            if hasattr(enemy, "death_handled"):
+                enemy.death_handled = True
             enemy.kill()
+
+    enemies = list(fiercetooth_group) + list(seashell_group) + list(pink_star_group)
 
     if progress.get("reached_end"):
         player.reached_level_end = True

@@ -97,7 +97,7 @@ class PinkStar(Enemy):
         self.path_update_interval = 60
 
         self.attacking = False
-        self.attack_range = 50
+        self.attack_range = 60
         self.attack_cooldown = 0
         self.attack_recovery_timer = 0
         self.attack_recovery_duration = 350
@@ -191,8 +191,12 @@ class PinkStar(Enemy):
         """
         Build a graph of connections between purple rects.
         Two rects are connected if:
+
         - They're on the same Y level and horizontally reachable
         - One is above the other (vertical connection, which requires a jump)
+
+        Args:
+            purple_rects: List of purple constraint rectangles.
         
         Returns:
             dict mapping (x, y) -> list of connected (x, y) positions.
@@ -212,7 +216,7 @@ class PinkStar(Enemy):
                 
                 if abs(pos[1] - other_pos[1]) < 10:  
                     connections[pos].append(other_pos)
-                elif abs(pos[0] - other_pos[0]) < TILE_SIZE * 2 and other_pos[1] < pos[1]:  
+                elif abs(pos[0] - other_pos[0]) <= TILE_SIZE * 3 and other_pos[1] <= pos[1]:  
                     gap = pos[1] - other_pos[1]
                     if gap <= (TILE_SIZE * 2) + 20:  
                         connections[pos].append(other_pos)
@@ -352,7 +356,7 @@ class PinkStar(Enemy):
                     dx = target_x - self.rect.centerx
                     dy = target_y - self.rect.centery
 
-                    if abs(dx) > 3:
+                    if abs(dx) > 1:
                         if dx > 0:
                             self.velocity.x = self.speed
                             self.direction = "right"
@@ -364,7 +368,7 @@ class PinkStar(Enemy):
                         self.state = "running"
                         self.state_timer = 0
 
-                    if not target_is_node and dy < -12 and abs(dx) < 6 and self.on_ground:
+                    if not target_is_node and dy < -12 and abs(dx) <= TILE_SIZE * 3 and self.on_ground:
                         self.path = []
                         self.current_path_index = 0
                         self.path_update_timer = self.path_update_interval
@@ -375,7 +379,7 @@ class PinkStar(Enemy):
                     dx = player.rect.centerx - self.rect.centerx
                     dy = player.rect.centery - self.rect.centery
 
-                    if abs(dx) > 3:
+                    if abs(dx) > 1:
                         if dx > 0:
                             self.velocity.x = self.speed
                             self.direction = "right"
@@ -473,10 +477,8 @@ class PinkStar(Enemy):
         for tile in obstacle_list:
             if self.rect.colliderect(tile.collide_rect):
                 if self.velocity.x > 0:  
-                    self.direction = "left"
                     self.rect.right = tile.collide_rect.left
                 elif self.velocity.x < 0:  
-                    self.direction = "right"
                     self.rect.left = tile.collide_rect.right
 
                 self.position.x = self.rect.x
@@ -660,6 +662,7 @@ class PinkStar(Enemy):
                         self.path = path_nodes
                     else:
                         self.path = [player_pos]
+
                     self.current_path_index = 0
                     self.path_update_timer = 0
                 else:
@@ -700,9 +703,9 @@ class PinkStar(Enemy):
             distance = math.hypot(dx, dy)
             height_difference = abs(player.rect.centery - self.rect.centery)
 
-            if distance <= self.attack_range // 2 and height_difference < 10:
-                if player.alive:
-                    player.get_hit(90, attacker=self)
+            if distance <= 25 and height_difference < 10:
+                if player.alive and player.hit_anim_timer == 0:
+                    player.get_hit(10, attacker=self)
                 self.attacking = False
                 self.chasing_player = False
                 self.post_attack_recovery = True

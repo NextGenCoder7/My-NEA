@@ -287,10 +287,11 @@ class Player(pygame.sprite.Sprite):
                         self.jump_count = 1
                         self.on_ground = False
 
-                        if hazard.hazard_type == "saw":
-                            self.get_hit(70, attacker=hazard)
-                        elif hazard.hazard_type == "spikes":
-                            self.get_hit(50, attacker=hazard)
+                        if self.hit_anim_timer == 0:
+                            if hazard.hazard_type == "saw":
+                                self.get_hit(70, attacker=hazard)
+                            elif hazard.hazard_type == "spikes":
+                                self.get_hit(50, attacker=hazard)
                 elif self.velocity.x < 0:  
                     self.rect.left = hazard.rect.right
                     if self.hit_anim_timer == 0:
@@ -299,10 +300,11 @@ class Player(pygame.sprite.Sprite):
                         self.jump_count = 1
                         self.on_ground = False
 
-                        if hazard.hazard_type == "saw":
-                            self.get_hit(70, attacker=hazard)
-                        elif hazard.hazard_type == "spikes":
-                            self.get_hit(50, attacker=hazard)
+                        if self.hit_anim_timer == 0:
+                            if hazard.hazard_type == "saw":
+                                self.get_hit(70, attacker=hazard)
+                            elif hazard.hazard_type == "spikes":
+                                self.get_hit(50, attacker=hazard)
                 else:
                     if self.rect.centerx < hazard.rect.centerx:
                         self.position.x = self.rect.x - KNOCKBACK
@@ -324,7 +326,7 @@ class Player(pygame.sprite.Sprite):
 
         if enemies_group:
             for enemy in enemies_group:
-                if enemy.alive:                     # don't collide with a dead enemy!
+                if enemy.alive:                     
                     if self.collide(enemy):                
                         if self.velocity.x > 0:  
                             self.rect.right = enemy.rect.left
@@ -697,7 +699,7 @@ class Player(pygame.sprite.Sprite):
                     self.stamina = self.max_stamina
 
             if not self.is_sprinting:
-                if self.stamina >= self.SPRINT_THRESHOLD:
+                if self.stamina >= self.SPRINT_THRESHOLD and not self.in_danger_zone:
                     self.sprint_allowed = True
                 else:
                     self.sprint_allowed = False

@@ -646,6 +646,7 @@ class FierceTooth(Enemy):
                 if self.speed == 2:
                     if random.randint(1, 10) == 1:
                         if self.on_ground and self.jump_count < 1:
+                            self.speed = 3
                             self.jump()
                             break
 
