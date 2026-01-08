@@ -232,6 +232,7 @@ def get_player_totals():
         row = cursor.fetchone()
         if not row:
             return {"total_coins": 0, "total_enemies": 0, "total_deaths": 0, "total_time": 0.0}
+
         return {
             "total_coins": row[0] or 0,
             "total_enemies": row[1] or 0,
@@ -296,21 +297,26 @@ def update_best_stats(level_id: int, deaths: int, coins: int, enemies: int, time
             conn.commit()
             return
 
-        best = {
-            "deaths": row[0] if row[0] is not None else 1_000_000,
-            "coins": row[1] if row[1] is not None else 0,
-            "enemies": row[2] if row[2] is not None else 0,
-            "time": row[3] if row[3] is not None else 1e12,
-        }
+        current_deaths  = row[0]
+        current_coins   = row[1]
+        current_enemies = row[2]
+        current_time    = row[3]
 
-        picks = (deaths, -coins, -enemies, time_taken)
-        current = (best["deaths"], -best["coins"], -best["enemies"], best["time"])
-        if picks < current:
+        new_deaths = deaths if current_deaths is None else min(current_deaths, deaths)
+        new_coins = coins  if current_coins is None else max(current_coins, coins)
+        new_enemies = enemies if current_enemies is None else max(current_enemies, enemies)
+
+        if current_time is None:
+            new_time = time_taken
+        else:
+            new_time = min(current_time, time_taken) if time_taken > 0 else current_time
+
+        if new_deaths != current_deaths or new_coins != current_coins or new_enemies != current_enemies or new_time != current_time:
             cursor.execute("""
-            UPDATE LevelBestStats
-            SET best_deaths = ?, best_coins = ?, best_enemies = ?, best_time = ?
-            WHERE level_id = ?
-            """, (deaths, coins, enemies, time_taken, level_id))
+                UPDATE LevelBestStats
+                SET best_deaths = ?, best_coins = ?, best_enemies = ?, best_time = ?
+                WHERE level_id = ?
+            """, (new_deaths, new_coins, new_enemies, new_time, level_id))
             conn.commit()
 
 

@@ -9,7 +9,6 @@ from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect, compute_danger_zones
 from button import Button
 from level import Level, unmute_music, mute_music
-from utils import load_level, load_tile_images
 from database import init_db, load_level_progress, save_level_progress, reset_level_progress, update_totals, get_player_totals, get_level_progress, update_best_stats, get_level_best_stats
 
 pygame.init()
