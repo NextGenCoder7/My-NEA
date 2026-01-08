@@ -268,6 +268,7 @@ class FierceTooth(Enemy):
                 (ix1, iy1), (ix2, iy2) = clip
             else:
                 ix1, iy1, ix2, iy2 = clip
+
             return ix1, iy1, ix2, iy2
 
         if obstacle_list:
@@ -277,8 +278,9 @@ class FierceTooth(Enemy):
                     ix1, iy1, ix2, iy2 = _normalise_clip(clip)
                     d1 = math.hypot(ix1 - sx, iy1 - sy)
                     d2 = math.hypot(ix2 - sx, iy2 - sy)
-                    d = min(d1, d2)
-                    if d < dist_to_end - 1e-6:
+
+                    dist = min(d1, d2)
+                    if dist < dist_to_end - 1e-6:
                         return True
 
         if constraint_rect_group:
@@ -291,8 +293,9 @@ class FierceTooth(Enemy):
                     ix1, iy1, ix2, iy2 = _normalise_clip(clip)
                     d1 = math.hypot(ix1 - sx, iy1 - sy)
                     d2 = math.hypot(ix2 - sx, iy2 - sy)
-                    d = min(d1, d2)
-                    if d < dist_to_end - 1e-6:
+
+                    dist = min(d1, d2)
+                    if dist < dist_to_end - 1e-6:
                         return True
 
         return False
@@ -610,14 +613,12 @@ class FierceTooth(Enemy):
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
 
-        # Capture previous vision state and update current vision once
         previous_vision = self.player_in_vision
         if player:
             vision_result = self.check_vision_cone(player, obstacle_list, constraint_rect_group)
         else:
             vision_result = False
         
-        # Shooting logic
         if vision_result == "shoot" and self.hit_anim_timer == 0 and self.shoot_cooldown == 0 and random.randint(1, 2) == 1:
             self.shoot(ammo_sprites, ammo_group)
 

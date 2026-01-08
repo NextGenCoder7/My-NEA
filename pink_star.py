@@ -451,7 +451,7 @@ class PinkStar(Enemy):
                     self.chasing_player = False
                     self.post_attack_recovery = True
                     self.attack_recovery_timer = 0
-                    self.attack_cooldown = 150
+                    self.attack_cooldown = 100
             elif dy < 0 and self.rect.centery > player.rect.centery and self.rect.top <= player.rect.bottom:
                 self.rect.top = player.rect.bottom
                 self.position.y = self.rect.y
@@ -705,7 +705,7 @@ class PinkStar(Enemy):
 
             if distance <= 25 and height_difference < 10:
                 if player.alive and player.hit_anim_timer == 0:
-                    player.get_hit(10, attacker=self)
+                    player.get_hit(90, attacker=self)
                 self.attacking = False
                 self.chasing_player = False
                 self.post_attack_recovery = True
