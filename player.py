@@ -13,6 +13,7 @@ class Player(pygame.sprite.Sprite):
 
     Attributes:
         ANIMATION_DELAY (int): Delay in frames between sprite animations.
+        TERMINAL_VEL (int): Maximum falling velocity for the player.
         HEALTH_BAR_DURATION (int): Duration for which the health bar is displayed after taking damage.
         STAMINA_BAR_DURATION (int): Duration for which the stamina bar is displayed after sprinting.
         NUM_AMMO_DURATION (int): Duration for which the ammo count is displayed after collecting ammo.

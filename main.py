@@ -108,6 +108,7 @@ class Camera:
             screen_width (int): The visible screen's width.
             world_width (int): Maximum length of the level (cols). 
             scroll_area (int): Distance from edge of screen where scrolling needs to happen if player is there. 
+            scroll (int): Current scroll offset.
         """
 
         self.screen_width = screen_width
