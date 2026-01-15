@@ -8,10 +8,7 @@ so the player cannot sprint forever. The player has health, and if the player's 
 The player can shoot ammo, and throw grenades. The longer the player holds g, the greater the distance the grenade will be thrown at 
 (until a certain max limit of course).
 
-There are 3 types of enemies:
-	- Fierce Tooth
-	- Seashell Pearl
-	- Pink Star
+There are 3 types of enemies: Fierce Tooth, Seashell Pearl and Pink Star.
 
 FierceTooth is your general platformer enemy, which patrols in particular areas and has vision. If the player is in vision, it will
 shoot the player and try to move closer to the player. If within a certain close range, it will try and attack the player (bite) 
@@ -46,9 +43,18 @@ per level: deaths, time taken, coins collcted and enemies killed. The lower the 
 The stats page in general shows those four stats for the current level progress too, but best stats only get updated if the player completes the 
 level. Total lifetime stats are also tracked across all levels, only for the four stats just mentioned. The sqlite3 library is used to achieve all this.
 
-This project also has an in-built level editor, which allows the user to create their own levels using the game engine. The user can place 
+The reason I call this project a game engine and not just a game is because the design is modular and resuable. 
+
+This project has an in-built level editor, which allows the user to create their own levels and save them. The user can place 
 the selected tiles on the right side, platforms, enemies, collectibles, checkpoints etc, and the player spawn point. 
 The user can then save the level to a file and edit or load it later to play. Loading a level file reads the data and generates the 
 level based on the data in the file, if it exists. Level files are saved in json format.
+
+To add another entity or object, add the image in the level editor tiles folder in assets, increment TILE_TYPES in constants.py,
+go to level editor and place it wherver you want in the levels, create a class for it in its own file or in another existing file, import 
+in main.py, in the process_data method in the World class make sure to add a condition to create an instance of the class when the tile type is detected,
+and finally add any necessary logic in the game loop in main.py if needed.
+If you want this to be saved in the database as well, you will need to add it as a new row in the functions in database.py file. Make sure to
+also update the functions in main.py that use the database functions to include the new row.
 
 I hope you enjoy my game engine!

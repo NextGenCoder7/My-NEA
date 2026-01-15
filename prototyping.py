@@ -96,84 +96,84 @@
 
 # --------------------------------------------------------------------------------------------------------------------------
 
-import sqlite3
+# import sqlite3
 
-conn = sqlite3.connect("game_data.db")
-cursor = conn.cursor()
+# conn = sqlite3.connect("game_data.db")
+# cursor = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS Levels (
-    level_id INTEGER PRIMARY KEY,
-    total_coins INTEGER,
-    total_enemies INTEGER,
-    total_checkpoints INTEGER
-)
-""")
+# cursor.execute("""
+# CREATE TABLE IF NOT EXISTS Levels (
+#     level_id INTEGER PRIMARY KEY,
+#     total_coins INTEGER,
+#     total_enemies INTEGER,
+#     total_checkpoints INTEGER
+# )
+# """)
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS PlayerStats (
-    stat_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    level_id INTEGER,
-    coins_collected INTEGER,
-    enemies_killed INTEGER,
-    time_taken REAL,
-    deaths INTEGER,
-    last_checkpoint INTEGER,
-    FOREIGN KEY (level_id) REFERENCES Levels(level_id)
-)
-""")
+# cursor.execute("""
+# CREATE TABLE IF NOT EXISTS PlayerStats (
+#     stat_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#     level_id INTEGER,
+#     coins_collected INTEGER,
+#     enemies_killed INTEGER,
+#     time_taken REAL,
+#     deaths INTEGER,
+#     last_checkpoint INTEGER,
+#     FOREIGN KEY (level_id) REFERENCES Levels(level_id)
+# )
+# """)
 
-levels = [
-    (1, "Level 1", 50, 10, 3),
-    (2, "Level 2", 30, 15, 2),
-    (3, "Level 3", 100, 25, 5)
-]
+# levels = [
+#     (1, "Level 1", 50, 10, 3),
+#     (2, "Level 2", 30, 15, 2),
+#     (3, "Level 3", 100, 25, 5)
+# ]
 
-cursor.executemany("INSERT OR IGNORE INTO Levels VALUES (?, ?, ?, ?, ?)", levels)
-
-
-player_stats = [
-    (1, 45, 8, 120.5, 2, 3), 
-    (2, 20, 10, 300.0, 5, 2), 
-    (3, 80, 18, 500.2, 7, 4)  
-]
+# cursor.executemany("INSERT OR IGNORE INTO Levels VALUES (?, ?, ?, ?, ?)", levels)
 
 
-cursor.executemany("""
-INSERT INTO PlayerStats (level_id, coins_collected, enemies_killed, time_taken, deaths, last_checkpoint)
-VALUES (?, ?, ?, ?, ?, ?)
-""", player_stats)
+# player_stats = [
+#     (1, 45, 8, 120.5, 2, 3), 
+#     (2, 20, 10, 300.0, 5, 2), 
+#     (3, 80, 18, 500.2, 7, 4)  
+# ]
 
 
-cursor.execute("""
-SELECT L.level_name, 
-       P.coins_collected, L.total_coins,
-       P.enemies_killed, L.total_enemies,
-       P.time_taken, P.deaths
-FROM PlayerStats P
-JOIN Levels L ON P.level_id = L.level_id
-""")
-
-rows = cursor.fetchall()
-print("Player stats vs Level totals:")
-for row in rows:
-    print(row)
+# cursor.executemany("""
+# INSERT INTO PlayerStats (level_id, coins_collected, enemies_killed, time_taken, deaths, last_checkpoint)
+# VALUES (?, ?, ?, ?, ?, ?)
+# """, player_stats)
 
 
-cursor.execute("""
-SELECT L.level_name, 
-       ROUND((P.coins_collected * 100.0) / L.total_coins, 2) as coin_completion,
-       ROUND((P.enemies_killed * 100.0) / L.total_enemies, 2) as enemy_completion
-FROM PlayerStats P
-JOIN Levels L ON P.level_id = L.level_id
-""")
+# cursor.execute("""
+# SELECT L.level_name, 
+#        P.coins_collected, L.total_coins,
+#        P.enemies_killed, L.total_enemies,
+#        P.time_taken, P.deaths
+# FROM PlayerStats P
+# JOIN Levels L ON P.level_id = L.level_id
+# """)
 
-completion = cursor.fetchall()
-print("\nCompletion %:")
-for row in completion:
-    print(row)
+# rows = cursor.fetchall()
+# print("Player stats vs Level totals:")
+# for row in rows:
+#     print(row)
 
 
-conn.commit()
-conn.close()
+# cursor.execute("""
+# SELECT L.level_name, 
+#        ROUND((P.coins_collected * 100.0) / L.total_coins, 2) as coin_completion,
+#        ROUND((P.enemies_killed * 100.0) / L.total_enemies, 2) as enemy_completion
+# FROM PlayerStats P
+# JOIN Levels L ON P.level_id = L.level_id
+# """)
+
+# completion = cursor.fetchall()
+# print("\nCompletion %:")
+# for row in completion:
+#     print(row)
+
+
+# conn.commit()
+# conn.close()
 
