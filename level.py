@@ -14,7 +14,7 @@ shot_fx = pygame.mixer.Sound('assets/Sounds/shot.wav')
 shot_fx.set_volume(0.5)
 
 
-def unmute_music():
+def unmute_gameplay_music():
     """
     Unmute the background music by setting its volume to 30% (the original sound file is very loud).
     """
@@ -22,7 +22,7 @@ def unmute_music():
     pygame.mixer.music.set_volume(0.3)
 
 
-def mute_music():
+def mute_gameplay_music():
     """
     Mute the background music by setting its volume to 0%.
     """

@@ -8,7 +8,7 @@ from pink_star import PinkStar
 from objects import Obstacle, CollectibleGem, GrenadeBox, Hazard, GameFlag
 from constraint_rects import ConstraintRect, compute_danger_zones
 from button import Button
-from level import Level, unmute_music, mute_music
+from level import Level, mute_gameplay_music, unmute_gameplay_music
 from database import init_db, load_level_progress, save_level_progress, reset_level_progress, update_totals, get_player_totals, get_level_progress, update_best_stats, get_level_best_stats
 
 pygame.init()
@@ -731,6 +731,12 @@ def main(win):
 
     level_btns = build_level_buttons()
 
+    music_on = load_image('music_on', 'GUI', 'Buttons')
+    music_off = load_image('music_off', 'GUI', 'Buttons')
+
+    music_on_btn = Button(WIDTH - 95, 7, music_on, 0.15)
+    music_off_btn = Button(WIDTH - 95, 7, music_off, 0.15)
+
     (world, level_info, obstacle_list, player, level_end_flag, player_ammo_group, player_grenade_group,
     fiercetooth_group, cannon_ball_group, pink_star_group, seashell_group, pearl_group,
     collectible_gem_group, hazard_group, constraint_rect_group, danger_zones, grenade_box_group,
@@ -738,6 +744,8 @@ def main(win):
     camera, enemies) = start_level(selected_level)
 
     fader = ScreenFade(WIDTH, HEIGHT, duration_ms=1250)
+
+    music_on = False
 
     main_menu = True
     instructions_page = False
@@ -753,8 +761,17 @@ def main(win):
         dt_seconds = clock.get_time() / 1000.0
 
         if main_menu:
-            mute_music()
             draw_main_menu(win)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
+
             if main_start_btn.draw(win):
                 fader.fade_out(win, clock)
                 main_menu = False
@@ -763,8 +780,16 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif instructions_page:
-            mute_music()
             draw_instructions_page(win)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
 
             if back_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -774,8 +799,16 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif levels_page:
-            mute_music()
             draw_levels_page(win, bg1)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
 
             if back_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -816,8 +849,16 @@ def main(win):
                     fader.fade_in(win, clock)
             
         elif stats_page:
-            mute_music()
             draw_stats_page(win)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
 
             if back_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -827,7 +868,6 @@ def main(win):
                 fader.fade_in(win, clock)
         
         elif playing_level:
-            unmute_music()
             keys = pygame.key.get_pressed()
 
             if keys[pygame.K_g] and player.alive and player.grenade_charging:
@@ -842,7 +882,7 @@ def main(win):
                     enemy.update_sprite(player)
 
                     if hasattr(enemy, 'smartmode') and enemy.smartmode:
-                        enemy.check_and_dodge_bullets(player_ammo_group)
+                        enemy.check_and_dodge_player_ammo(player_ammo_group)
                         enemy.check_and_dodge_grenades(player_grenade_group)                    
 
                     if hasattr(enemy, 'was_hit_from_behind') and enemy.was_hit_from_behind:
@@ -998,10 +1038,27 @@ def main(win):
                 "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
                 "reached_end": player.reached_level_end,
             })
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
             
         elif death_screen:
-            mute_music()
             draw_death_screen(win)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
 
             if restart_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -1047,6 +1104,7 @@ def main(win):
 
                 if player.health <= 0:
                     player.health = max(1, player.max_health // 2)
+
                 player.alive = True
                 player.death_timer = 0
                 if hasattr(player, "death_anim_started"):
@@ -1058,8 +1116,16 @@ def main(win):
                 fader.fade_in(win, clock)
 
         elif next_level_screen:
-            mute_music()
             draw_next_level_screen(win)
+
+            if music_on:
+                if music_on_btn.draw(win):
+                    music_on = False
+                    mute_gameplay_music()
+            else:
+                if music_off_btn.draw(win):
+                    music_on = True
+                    unmute_gameplay_music()
 
             if restart_btn.draw(win):
                 fader.fade_out(win, clock)
@@ -1177,7 +1243,7 @@ def main(win):
         "killed_enemy_ids": getattr(level_info, "killed_enemy_ids", set()),
         "reached_end": player.reached_level_end,
     })
-    mute_music()
+    mute_gameplay_music()
     pygame.quit()
 
 

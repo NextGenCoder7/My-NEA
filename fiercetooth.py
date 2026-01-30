@@ -365,7 +365,7 @@ class FierceTooth(Enemy):
             self.player_in_vision = True
             return "shoot"
 
-    def check_and_dodge_bullets(self, player_ammo_group):
+    def check_and_dodge_player_ammo(self, player_ammo_group):
         """
         If in smartmode, check nearby player projectiles and randomly dodge by jumping.
 
