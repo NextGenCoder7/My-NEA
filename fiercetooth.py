@@ -147,7 +147,6 @@ class FierceTooth(Enemy):
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
-        self.on_ground = False
         
         self.state_timer += 1
         if self.state_timer >= self.state_duration:
@@ -513,7 +512,7 @@ class FierceTooth(Enemy):
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
-                    elif self.y_vel > 1 and not self.on_ground:
+                    elif self.y_vel > 0 and not self.on_ground:
                         sprite_sheet = "Fall"
                     elif self.moving_left or self.moving_right:
                         sprite_sheet = "Run"
@@ -524,7 +523,7 @@ class FierceTooth(Enemy):
                     sprite_sheet = "Hit"
                 elif self.y_vel < 0:
                     sprite_sheet = "Jump"
-                elif self.y_vel > 1 and not self.on_ground:
+                elif self.y_vel > 0 and not self.on_ground:
                     sprite_sheet = "Fall"
                 elif self.moving_left or self.moving_right:
                     sprite_sheet = "Run"
@@ -726,7 +725,7 @@ class FierceTooth(Enemy):
                     if self.last_chase_direction == "right":
                         if self.rect.left >= purple_rect.rect.right:  
                             self.direction = "left"
-                            if self.on_ground and self.jump_count < 1:
+                            if self.jump_count < 1:
                                 self.jump()
 
                             self.continue_chase_timer = 0
@@ -743,7 +742,7 @@ class FierceTooth(Enemy):
                     else:
                         if self.rect.right <= purple_rect.rect.left:
                             self.direction = "right"
-                            if self.on_ground and self.jump_count < 1:
+                            if self.jump_count < 1:
                                 self.jump()
 
                             self.continue_chase_timer = 0
