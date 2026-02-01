@@ -687,16 +687,19 @@ class PinkStar(Enemy):
             if self.state == "idle":
                 self.state = "running"
                 self.state_timer = 0
+
         elif self.post_attack_recovery:
              self.speed = 0
              self.state = "idle"
              self.jump_timer = 0
+
         elif self.hit_anim_timer > 0:
             self.attack_cooldown = 150
             self.speed = 0
             self.state = "idle"       
             self.state_timer = 0
             self.jump_timer = 0
+
         else:
             self.speed = 3
 
@@ -709,6 +712,7 @@ class PinkStar(Enemy):
             if distance <= 25 and height_difference < 10:
                 if player.alive and player.hit_anim_timer == 0:
                     player.get_hit(90, attacker=self)
+
                 self.attacking = False
                 self.chasing_player = False
                 self.post_attack_recovery = True
