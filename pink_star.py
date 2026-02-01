@@ -72,6 +72,7 @@ class PinkStar(Enemy):
     """
 
     HIT_ANIM_DURATION = 300
+    TERMINAL_VEL = 10
 
     def __init__(self, x, y, x_vel, sprites, health):
         """
@@ -365,6 +366,7 @@ class PinkStar(Enemy):
                             self.velocity.x = -self.speed
                             self.direction = "left"
                             self.moving_left = True
+
                         self.state = "running"
                         self.state_timer = 0
 
@@ -415,8 +417,8 @@ class PinkStar(Enemy):
                     self.moving_left = True
         
         self.y_vel += self.GRAVITY
-        if self.y_vel > 10:
-            self.y_vel = 10
+        if self.y_vel > self.TERMINAL_VEL:
+            self.y_vel = self.TERMINAL_VEL
         
         dy = self.y_vel
 
