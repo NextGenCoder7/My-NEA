@@ -163,6 +163,7 @@ class Player(pygame.sprite.Sprite):
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
+        self.on_ground = False
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             if shift_pressed and self.stamina > 0 and self.sprint_allowed:
@@ -263,6 +264,11 @@ class Player(pygame.sprite.Sprite):
         if self.rect.top + dy > HEIGHT:
             self.health = 0
 
+        if self.rect.top + dy < 0:
+            self.rect.top = 0
+            self.position.y = self.rect.y
+            self.y_vel = 0
+
         self.position.x += self.velocity.x
         self.rect.topleft = (int(self.position.x), int(self.position.y))
         self.mask = pygame.mask.from_surface(self.img)
@@ -354,7 +360,7 @@ class Player(pygame.sprite.Sprite):
         
         if not getattr(self, 'death_anim_started', False):
             self.death_anim_started = True
-            self.y_vel = -13  
+            self.y_vel = -15  
             self.jump_count = 2
             self.death_rotation = 0
             self.death_spin_speed = -8 if self.direction == "right" else 8
@@ -389,15 +395,15 @@ class Player(pygame.sprite.Sprite):
 
         if self.jump_count < 2:
             jump_fx.play()
+
+            if self.jump_count == 0:
+                self.y_vel = -13
+
             if not self.in_danger_zone:
-                if self.jump_count == 0:
-                    self.y_vel = -14
-                else:
+                if self.jump_count == 1:
                     self.y_vel = -8
             else:
-                if self.jump_count == 0:
-                    self.y_vel = -13
-                else:
+                if self.jump_count == 1:
                     self.y_vel = -6
 
             self.jump_count += 1
@@ -640,7 +646,7 @@ class Player(pygame.sprite.Sprite):
                     sprite_sheet = "Jump"
                 elif self.jump_count == 2:
                     sprite_sheet = "Double_Jump"
-            elif self.y_vel > 0 and not self.on_ground:
+            elif self.y_vel > 1 and not self.on_ground:
                 sprite_sheet = "Fall"
             elif self.moving_left or self.moving_right:
                 sprite_sheet = "Run"
