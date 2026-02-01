@@ -91,7 +91,7 @@ class Enemy(pygame.sprite.Sprite):
         self.is_enemy = True
         self.enemy_type = ""
         
-    def handle_movement(self, obstacle_list, constraint_rect_group, player):
+    def handle_movement(self, obstacle_list):
         """
         Handles AI movement logic (general default movement for all enemies).
         """

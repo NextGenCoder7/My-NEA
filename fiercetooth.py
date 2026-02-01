@@ -17,6 +17,7 @@ class FierceTooth(Enemy):
         GRENADE_FLEE_DURATION (int): Duration to flee from grenades in frames.
         TURN_COOLDOWN (int): Cooldown time for turning direction in frames.
         SUPPRESS_TURN_DURATION (int): Duration to suppress random turns after losing vision.
+        TERMINAL_VEL (int): Maximum fall speed.
 
         death_fall_speed_cap (int): Maximum fall speed after death.
         death_handled (bool): Whether death fall handling is complete.
