@@ -49,6 +49,7 @@ class PinkStar(Enemy):
 
     Attributes:
         HIT_ANIM_DURATION (int): Duration of hit animation in frames.
+        TERMINAL_VEL (int): Maximum fall speed.
 
         death_fall_speed_cap (int): Maximum fall speed when dead.
         death_handled (bool): Whether death handling has been completed.
