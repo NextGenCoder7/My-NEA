@@ -98,6 +98,12 @@ class Camera:
     The class that is responsible for scrolling the game window when the player reaches within
     a certain range to the left or right of the visible screen. It also ensures the camera doesn't scroll past
     the end of the level
+
+    Attributes:
+        screen_width (int): The visible screen's width.
+        world_width (int): Maximum length of the level (cols). 
+        scroll_area (int): Distance from edge of screen where scrolling needs to happen if player is there. 
+        scroll (int): Current scroll offset.
     """
 
     def __init__(self, screen_width: int, world_width: int, scroll_area: int):
