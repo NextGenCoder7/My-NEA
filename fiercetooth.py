@@ -109,6 +109,14 @@ class FierceTooth(Enemy):
         self.enemy_type = "Fiercetooth"
 
     def handle_death(self, obstacle_list):
+        """
+        Handles FierceTooth death fall logic. If in air, falls until landing on a platform.
+        Stays dead on a platform. 
+
+        Args:
+            obstacle_list (Group): A list of obstacle rects for collision checks.
+        """
+
         self.y_vel += self.GRAVITY
         if self.y_vel > self.death_fall_speed_cap:
             self.y_vel = self.death_fall_speed_cap
@@ -134,9 +142,11 @@ class FierceTooth(Enemy):
         """
         Handles AI movement logic (specific movement for Fiercetooth enemies).
         """
+
         self.velocity.x = 0
         self.moving_left = False
         self.moving_right = False
+        self.on_ground = False
         
         self.state_timer += 1
         if self.state_timer >= self.state_duration:
@@ -502,7 +512,7 @@ class FierceTooth(Enemy):
                 else:
                     if self.y_vel < 0:
                         sprite_sheet = "Jump"
-                    elif self.y_vel > 0 and not self.on_ground:
+                    elif self.y_vel > 1 and not self.on_ground:
                         sprite_sheet = "Fall"
                     elif self.moving_left or self.moving_right:
                         sprite_sheet = "Run"
@@ -513,7 +523,7 @@ class FierceTooth(Enemy):
                     sprite_sheet = "Hit"
                 elif self.y_vel < 0:
                     sprite_sheet = "Jump"
-                elif self.y_vel > 0 and not self.on_ground:
+                elif self.y_vel > 1 and not self.on_ground:
                     sprite_sheet = "Fall"
                 elif self.moving_left or self.moving_right:
                     sprite_sheet = "Run"
@@ -717,6 +727,7 @@ class FierceTooth(Enemy):
                             self.direction = "left"
                             if self.on_ground and self.jump_count < 1:
                                 self.jump()
+
                             self.continue_chase_timer = 0
                             self.pursuing_purple_rect = None
                             self.last_chase_direction = None
@@ -733,6 +744,7 @@ class FierceTooth(Enemy):
                             self.direction = "right"
                             if self.on_ground and self.jump_count < 1:
                                 self.jump()
+
                             self.continue_chase_timer = 0
                             self.pursuing_purple_rect = None
                             self.last_chase_direction = None
@@ -793,6 +805,7 @@ class FierceTooth(Enemy):
                     if self.state == "idle":
                         self.state = "running"
                         self.state_timer = 0
+
             elif self.post_attack_recovery:
                 self.speed = 0
                 self.state = "idle"
@@ -806,6 +819,7 @@ class FierceTooth(Enemy):
                         self.recently_lost_vision_timer = 0
                         self.recheck_turn_timer = self.RECHECK_TURN_DURATION
                         self.turn_cooldown = self.TURN_COOLDOWN
+
             elif self.hit_anim_timer > 0:      
                 self.attack_cooldown = 60
                 self.speed = 0
@@ -820,6 +834,7 @@ class FierceTooth(Enemy):
                         self.recently_lost_vision_timer = 0
                         self.recheck_turn_timer = self.RECHECK_TURN_DURATION
                         self.turn_cooldown = self.TURN_COOLDOWN
+
             elif self.smartmode and player and self.recently_lost_vision_timer > 0:
                 dx = player.rect.centerx - self.rect.centerx
                 player_is_behind = (self.direction == "right" and dx <= -10) or (self.direction == "left" and dx >= 10)
@@ -832,6 +847,7 @@ class FierceTooth(Enemy):
                     self.recently_lost_vision_timer = 0
                     self.recheck_turn_timer = self.RECHECK_TURN_DURATION 
                     self.turn_cooldown = self.TURN_COOLDOWN
+
             else:
                 if self.grenade_flee_timer == 0:
                     self.speed = 2
@@ -883,7 +899,7 @@ class FierceTooth(Enemy):
             until vision range. Sliding is clamped by RED constraint rects so a ray
             cannot slide past a RED constraint.
 
-        Please note this method is intended for showcasing purposes only, and is fully written by AI.
+        Please note this method is intended for testing purposes only, and is fully written by AI.
         """
 
         if not self.alive:
