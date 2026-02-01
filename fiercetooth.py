@@ -58,6 +58,7 @@ class FierceTooth(Enemy):
     GRENADE_FLEE_DURATION = 100
     TURN_COOLDOWN = 15
     SUPPRESS_TURN_DURATION = 120
+    TERMINAL_VEL = 10
 
     def __init__(self, x, y, x_vel, sprites, health, smartmode=False):
         """
@@ -169,8 +170,8 @@ class FierceTooth(Enemy):
                 self.moving_left = True
         
         self.y_vel += self.GRAVITY
-        if self.y_vel > 10:
-            self.y_vel = 10
+        if self.y_vel > self.TERMINAL_VEL:
+            self.y_vel = self.TERMINAL_VEL
         
         dy = self.y_vel
 
