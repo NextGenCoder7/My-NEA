@@ -1,3 +1,6 @@
+import os
+from os.path import join, isfile
+
 WIDTH, HEIGHT = 800, 640
 LOWER_MARGIN, SIDE_MARGIN = 100, 300
 
@@ -9,7 +12,20 @@ OBSTACLE_SIDE_PADDING = TILE_SIZE * 0.125
 TILE_TYPES = 30
 
 TOTAL_LEVELS = 50
-CURRENT_MAX_LEVELS = 2
+try:
+    LEVELS_DIR = join("assets", "Levels")
+    if os.path.isdir(LEVELS_DIR):
+        CURRENT_MAX_LEVELS = sum(
+            1 for f in os.listdir(LEVELS_DIR)
+            if isfile(join(LEVELS_DIR, f)) and f.lower().endswith(".json")
+        )
+        if CURRENT_MAX_LEVELS > TOTAL_LEVELS:
+            CURRENT_MAX_LEVELS = TOTAL_LEVELS
+    else:
+        CURRENT_MAX_LEVELS = 0
+except Exception:
+    CURRENT_MAX_LEVELS = 0
+
 
 TILE_BTN_SPACING_X = 75
 TILE_BTN_SPACING_Y = 70
