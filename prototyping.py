@@ -1,3 +1,7 @@
+# this file is only for prototyping the A* algorithm and the database, and is not used in the final game.
+
+# A* pathfinding
+
 # import heapq
 
 
@@ -96,6 +100,8 @@
 
 # --------------------------------------------------------------------------------------------------------------------------
 
+# SQL database 
+
 # import sqlite3
 
 # conn = sqlite3.connect("game_data.db")
@@ -176,4 +182,3 @@
 
 # conn.commit()
 # conn.close()
-
